@@ -12,6 +12,7 @@ Required keys:
 
 Optional:
     DJANGO_CSRF_TRUSTED_ORIGINS   comma-separated origins, e.g. https://example.com
+    DJANGO_CORS_ALLOWED_ORIGINS   comma-separated origins for the mobile/web API
     DJANGO_CONN_MAX_AGE           persistent DB connections, default 60
 """
 
@@ -71,6 +72,8 @@ if not CSRF_TRUSTED_ORIGINS:
         for host in ALLOWED_HOSTS
         if host not in {"*", "localhost", "127.0.0.1"}
     ]
+
+CORS_ALLOWED_ORIGINS = _csv_env("DJANGO_CORS_ALLOWED_ORIGINS")
 
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:

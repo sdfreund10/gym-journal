@@ -83,6 +83,22 @@ Or create non-staff users in [Django admin](http://127.0.0.1:8000/admin/) after 
 
 Create a superuser (same command as above), then visit [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/).
 
+### JSON API
+
+Base path: `/api/v1/`. Authenticated requests send:
+
+```http
+Authorization: Token <your-token>
+```
+
+Obtain a token:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "YOUR_USER", "password": "YOUR_PASSWORD"}'
+```
+
 ## Tests
 
 Tests use an in-memory SQLite database and do not require PostgreSQL:

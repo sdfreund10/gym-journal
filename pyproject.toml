@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.9"
 dependencies = [
     "django>=4.2.30",
+    "django-cors-headers>=4.9.0",
+    "djangorestframework>=3.16.1",
     "gunicorn>=23.0.0",
     "psycopg>=3.2.13",
     "python-dotenv>=1.0.1",
