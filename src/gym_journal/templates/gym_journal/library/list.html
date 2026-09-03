@@ -1,0 +1,53 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Exercise Library — Exercise Tracker{% endblock %}
+{% block meta_description %}Browse, search and filter your exercise library by target muscle, and create new exercises.{% endblock %}
+
+{% block content %}
+<main class="mx-auto w-full max-w-md px-5 pb-32 pt-10">
+  <a href="{% url 'index' %}" class="mb-4 inline-flex items-center gap-1 text-sm font-bold text-muted-foreground">
+    {% include "gym_journal/partials/icons.html" with icon="chevron-left" class="h-4 w-4" %}
+    Home
+  </a>
+  <h1 class="font-display text-4xl uppercase">Library</h1>
+
+  <div class="relative mt-5" data-search-list="library-list">
+    {% include "gym_journal/partials/icons.html" with icon="search" class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none" %}
+    <input type="search" placeholder="Search exercises" aria-label="Search exercises" data-search-input class="w-full rounded-2xl bg-card py-4 pl-12 pr-4 text-base outline-none ring-primary placeholder:text-muted-foreground focus:ring-2 appearance-none">
+  </div>
+
+  <div class="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1" data-muscle-filter>
+    <button type="button" class="shrink-0 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground" data-muscle="" data-filter-chip>All</button>
+    {% for muscle in muscles %}
+    <button type="button" class="shrink-0 rounded-full bg-card px-4 py-2.5 text-sm font-bold" data-muscle="{{ muscle.name|lower }}" data-filter-chip>{{ muscle.name }}</button>
+    {% endfor %}
+  </div>
+
+  <ul class="mt-5 space-y-3" id="library-list">
+    {% for exercise in exercises %}
+    <li data-search-item
+        data-search-text="{{ exercise.name|lower }} {{ exercise.get_category_display|lower }}"
+        data-muscles="{% for m in exercise.targeted_muscles.all %}{{ m.name|lower }}{% if not forloop.last %} {% endif %}{% endfor %}">
+      <a href="{% url 'exercise_detail' exercise.pk %}" class="flex items-center gap-4 rounded-2xl bg-card p-4 active:scale-[0.99] transition-transform">
+        <span class="font-display grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-secondary text-lg uppercase text-muted-foreground">{{ exercise.name|slice:":2" }}</span>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-lg font-bold">{{ exercise.name }}</span>
+          <span class="block truncate text-sm text-muted-foreground">
+            {{ exercise.get_category_display }}{% if exercise.targeted_muscles.exists %} · {% for m in exercise.targeted_muscles.all %}{{ m.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+          </span>
+        </span>
+      </a>
+    </li>
+    {% empty %}
+    <li class="rounded-2xl bg-card px-5 py-10 text-center text-muted-foreground" data-search-empty>No exercises yet.</li>
+    {% endfor %}
+  </ul>
+
+  <div class="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md px-5 safe-bottom">
+    <a href="{% url 'exercise_new' %}" class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-5 text-xl uppercase text-primary-foreground active:scale-95 transition-transform">
+      {% include "gym_journal/partials/icons.html" with icon="plus" class="h-6 w-6" %}
+      New exercise
+    </a>
+  </div>
+</main>
+{% endblock %}

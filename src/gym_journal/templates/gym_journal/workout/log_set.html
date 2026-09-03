@@ -1,0 +1,88 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}{{ exercise.name }} — Log Set{% endblock %}
+
+{% block content %}
+<main class="mx-auto w-full max-w-md px-5 pb-48 pt-10">
+  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+    <div class="min-w-0">
+      <a href="{% url 'workout_pick_exercise' %}" class="text-sm font-bold text-muted-foreground">← Change exercise</a>
+      <h1 class="font-display truncate text-3xl uppercase">{{ exercise.name }}</h1>
+    </div>
+    <a href="{% url 'active_workout_detail' %}" class="shrink-0 rounded-2xl bg-card p-4 active:scale-95 transition-transform" aria-label="Close">
+      {% include "gym_journal/partials/icons.html" with icon="x" class="h-5 w-5" %}
+    </a>
+  </div>
+  <p class="mt-1 text-sm text-muted-foreground">Set {{ next_set_number }} · {{ exercise.get_category_display }}</p>
+
+  <form method="post" action="{% url 'log_set' exercise.pk %}" id="log-set-form" class="mt-8 space-y-9">
+    {% csrf_token %}
+    <input type="hidden" name="exercise_id" value="{{ exercise.pk }}">
+
+    {% if has_weight %}
+    <div class="space-y-3" data-stepper data-name="weight" data-value="{{ default_weight }}" data-step="5" data-min="0" data-max="800">
+      <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Weight</span>
+      <div class="flex items-center gap-4">
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease weight">
+          {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+        </button>
+        <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_weight }}</span>
+          <span class="text-base text-muted-foreground">lb</span>
+        </div>
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase weight">
+          {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+        </button>
+      </div>
+      <input type="hidden" name="weight" value="{{ default_weight }}" data-stepper-input>
+      <button type="button" class="w-full rounded-2xl py-4 text-sm font-bold active:scale-95 transition-transform {% if last_weight is None %}bg-card text-muted-foreground{% else %}bg-secondary{% endif %}" data-last-weight="{{ last_weight|default:'' }}" {% if last_weight is None %}disabled{% endif %}>
+        {% if last_weight is None %}No previous weight logged{% else %}Same as last set ({{ last_weight }} lb){% endif %}
+      </button>
+    </div>
+    {% endif %}
+
+    {% if is_timed %}
+    <div class="space-y-3" data-stepper data-name="duration_seconds" data-value="{{ default_duration }}" data-step="5" data-min="5" data-max="900">
+      <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Duration</span>
+      <div class="flex items-center gap-4">
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease duration">
+          {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+        </button>
+        <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_duration }}</span>
+          <span class="text-base text-muted-foreground">sec</span>
+        </div>
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase duration">
+          {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+        </button>
+      </div>
+      <input type="hidden" name="duration_seconds" value="{{ default_duration }}" data-stepper-input>
+    </div>
+    {% else %}
+    <div class="space-y-3" data-stepper data-name="reps" data-value="{{ default_reps }}" data-step="1" data-min="1" data-max="100">
+      <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Reps</span>
+      <div class="flex items-center gap-4">
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease reps">
+          {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+        </button>
+        <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_reps }}</span>
+        </div>
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase reps">
+          {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+        </button>
+      </div>
+      <input type="hidden" name="reps" value="{{ default_reps }}" data-stepper-input>
+    </div>
+    {% endif %}
+
+    <div class="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-md gap-3 bg-gradient-to-t from-background via-background to-transparent px-5 pt-8 safe-bottom">
+      <button type="submit" name="action" value="close" class="rounded-2xl bg-card px-5 py-6 font-bold active:scale-95 transition-transform">Save &amp; close</button>
+      <button type="submit" name="action" value="log" class="font-display flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform">
+        {% include "gym_journal/partials/icons.html" with icon="check" class="h-6 w-6" %}
+        Log set
+      </button>
+    </div>
+  </form>
+</main>
+{% endblock %}

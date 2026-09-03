@@ -1,0 +1,356 @@
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+
+from .models import Exercise, Muscle, Workout, WorkoutSet
+
+
+def _validation_message(exc):
+    if hasattr(exc, "message_dict"):
+        non_field_errors = exc.message_dict.get("__all__")
+        if non_field_errors:
+            return str(non_field_errors[0])
+        for field_errors in exc.message_dict.values():
+            if field_errors:
+                return str(field_errors[0])
+    if exc.messages:
+        return str(exc.messages[0])
+    return "Something went wrong. Please try again."
+
+
+def _optional_post_value(post, key):
+    value = post.get(key)
+    return value if value not in (None, "") else None
+
+
+# Maybe Category should be an object - then each category could define its own defaults.
+def _category_defaults(category):
+    has_weight = category in {
+        Exercise.Category.DUMBBELL,
+        Exercise.Category.FREE_WEIGHT,
+        Exercise.Category.MACHINE,
+    }
+    is_timed = category == Exercise.Category.TIMED
+    default_weight = 45 if category == Exercise.Category.FREE_WEIGHT else 25
+    return {
+        "has_weight": has_weight,
+        "is_timed": is_timed,
+        "default_weight": default_weight,
+        "default_reps": 8,
+        "default_duration": 30,
+    }
+
+
+# GET /
+@login_required
+def index(request):
+    user_workouts = Workout.objects.for_user(request.user)
+    active_workout = user_workouts.active().first()
+    today_set_count = 0
+    if active_workout:
+        today_set_count = active_workout.workoutset_set.count()
+
+    last_workout = (
+        user_workouts.filter(ended_at__isnull=False).order_by("-started_at").first()
+    )
+    last_workout_set_count = 0
+    if last_workout:
+        last_workout_set_count = last_workout.workoutset_set.count()
+
+    return render(
+        request,
+        "gym_journal/index.html",
+        {
+            "active_workout": active_workout,
+            "exercise_count": Exercise.objects.count(),
+            "finished_workout_count": user_workouts.filter(
+                ended_at__isnull=False
+            ).count(),
+            "today_set_count": today_set_count,
+            "last_workout": last_workout,
+            "last_workout_set_count": last_workout_set_count,
+        },
+    )
+
+
+# GET /workouts/active
+# Return latest active workout
+
+# GET /workouts
+# Show past workouts
+
+# GET /workout/
+@login_required
+def active_workout_detail(request):
+    workout = Workout.objects.for_user(request.user).active().first()
+    if not workout:
+        return render(request, "gym_journal/workout/no_active.html")
+
+    sets = workout.workoutset_set.select_related("exercise").order_by("-logged_at")
+    return render(
+        request,
+        "gym_journal/workout/detail.html",
+        {
+            "workout": workout,
+            "sets": sets,
+            "set_count": sets.count(),
+        },
+    )
+
+# GET /workout/:workout_id/
+@login_required
+def workout_detail(request, workout_id):
+    workout = get_object_or_404(Workout, id=workout_id, user=request.user)
+
+    sets = workout.workoutset_set.select_related("exercise").order_by("-logged_at")
+    return render(
+        request,
+        "gym_journal/workout/detail.html",
+        {
+            "workout": workout,
+            "sets": sets,
+            "set_count": sets.count(),
+        },
+    )
+
+
+# GET /workout/add/
+@login_required
+def workout_pick_exercise(request):
+    active_workout = Workout.objects.for_user(request.user).active().first()
+    if not active_workout:
+        return render(request, "gym_journal/workout/no_active.html")
+
+    exercises = Exercise.ordered_by_recency(request.user)
+    recent_ids = WorkoutSet.recent_ids(request.user, limit=3)
+
+    return render(
+        request,
+        "gym_journal/workout/pick_exercise.html",
+        {
+            "exercises": exercises,
+            "recent_exercise_ids": set(recent_ids),
+        },
+    )
+
+
+# GET /workout/add/<exercise_id>/
+@login_required
+def workout_log_set(request, exercise_id):
+    workout = Workout.objects.for_user(request.user).active().first()
+    if not workout:
+        return render(request, "gym_journal/workout/no_active.html")
+
+    exercise = get_object_or_404(Exercise, pk=exercise_id)
+    next_set_number = WorkoutSet.next_set_number(workout, exercise)
+
+    defaults = _category_defaults(exercise.category)
+    return render(
+        request,
+        "gym_journal/workout/log_set.html",
+        {
+            "exercise": exercise,
+            "next_set_number": next_set_number,
+            "last_weight": exercise.last_weight(request.user),
+            **defaults,
+        },
+    )
+
+
+# POST /workouts/start
+# Create a new workout
+@login_required
+def start_workout(request):
+    active_workout = Workout.objects.for_user(request.user).active().first()
+    if active_workout:
+        messages.error(request, "You already have a workout in progress.")
+        return redirect("index")
+
+    new_workout = Workout.start(request.user)
+    messages.success(request, "Workout started.")
+    return redirect("workout_detail", workout_id=new_workout.id)
+
+
+# POST /workouts/finish
+# Finish lastest active workout
+@login_required
+def finish_workout(request):
+    active_workout = Workout.objects.for_user(request.user).active().first()
+    if not active_workout:
+        messages.error(request, "No active workout to finish.")
+        return redirect("index")
+
+    active_workout.ended_at = timezone.now()
+    try:
+        active_workout.full_clean()
+        active_workout.save()
+        messages.success(request, "Workout finished.")
+        return redirect("workout_detail", workout_id=active_workout.id)
+    except ValidationError as e:
+        messages.error(request, _validation_message(e))
+        return redirect("workout_detail", workout_id=active_workout.id)
+
+
+# POST /workout/log/:exercise_id
+# Log a set
+@login_required
+def log_set(request, exercise_id):
+    active_workout = Workout.objects.for_user(request.user).active().first()
+    if not active_workout:
+        messages.error(request, "Start a workout before logging sets.")
+        return redirect("index")
+
+    exercise = get_object_or_404(Exercise, pk=exercise_id)
+
+    new_set = WorkoutSet(
+        workout=active_workout,
+        exercise=exercise,
+        logged_at=timezone.now(),
+        weight=_optional_post_value(request.POST, "weight"),
+        reps=_optional_post_value(request.POST, "reps"),
+        duration_seconds=_optional_post_value(request.POST, "duration_seconds"),
+    )
+    try:
+        new_set.full_clean()
+        new_set.save()
+        messages.success(request, "Set logged.")
+        return redirect("workout_detail", workout_id=active_workout.id)
+    except ValidationError as e:
+        messages.error(request, _validation_message(e))
+        return redirect("workout_log_set", exercise_id=exercise_id)
+
+
+# POST /workout/set/<set_id>/delete/
+@login_required
+def delete_set(request, set_id):
+    workout_set = get_object_or_404(
+        WorkoutSet, pk=set_id, workout__user=request.user
+    )
+    workout_set.delete()
+    messages.success(request, "Set removed.")
+    return redirect("active_workout_detail")
+
+
+# GET /exercises
+@login_required
+def exercise_list(request):
+    exercises = Exercise.objects.prefetch_related("targeted_muscles").order_by("name")
+    return render(
+        request,
+        "gym_journal/library/list.html",
+        {
+            "exercises": exercises,
+            "muscles": Muscle.objects.order_by("name"),
+        },
+    )
+
+
+# GET /exercises/new
+@login_required
+def exercise_new(request):
+    return render(
+        request,
+        "gym_journal/library/form.html",
+        _exercise_form_context(),
+    )
+
+
+# POST /exercises/create
+def _exercise_form_context(exercise=None, selected_muscles=None):
+    return {
+        "exercise": exercise,
+        "categories": Exercise.Category.choices,
+        "muscles": Muscle.objects.order_by("name"),
+        "selected_muscles": selected_muscles or [],
+    }
+
+
+@login_required
+def create_exercise(request):
+    new_exercise = Exercise(
+        name=request.POST.get('name'),
+        category=request.POST.get('category'),
+    )
+    selected_muscle_ids = request.POST.getlist('targeted_muscles')
+    try:
+        new_exercise.full_clean()
+        new_exercise.save()
+        muscles = Muscle.objects.filter(id__in=selected_muscle_ids)
+        new_exercise.targeted_muscles.set(muscles)
+        messages.success(request, "Exercise added.")
+        return redirect("exercise_list")
+    except ValidationError as e:
+        messages.error(request, _validation_message(e))
+        return render(
+            request,
+            "gym_journal/library/form.html",
+            _exercise_form_context(
+                exercise=new_exercise,
+                selected_muscles=list(Muscle.objects.filter(id__in=selected_muscle_ids)),
+            ),
+        )
+
+
+# GET /exercises/:id
+@login_required
+def exercise_detail(request, exercise_id):
+    try:
+        exercise = Exercise.objects.prefetch_related("targeted_muscles").get(
+            pk=exercise_id
+        )
+    except Exercise.DoesNotExist:
+        return render(request, "gym_journal/library/not_found.html")
+
+    return render(request, "gym_journal/library/detail.html", {"exercise": exercise})
+
+
+# GET /exercises/:id/edit
+@login_required
+def exercise_edit(request, exercise_id):
+    exercise = get_object_or_404(
+        Exercise.objects.prefetch_related("targeted_muscles"), pk=exercise_id
+    )
+    return render(
+        request,
+        "gym_journal/library/form.html",
+        _exercise_form_context(
+            exercise=exercise,
+            selected_muscles=list(exercise.targeted_muscles.all()),
+        ),
+    )
+
+
+# POST /exercises/:id/update
+@login_required
+def update_exercise(request, exercise_id):
+    exercise = get_object_or_404(Exercise, pk=exercise_id)
+    exercise.name = request.POST.get('name')
+    exercise.category = request.POST.get('category')
+    selected_muscle_ids = request.POST.getlist('targeted_muscles')
+    try:
+        exercise.full_clean()
+        exercise.save()
+        exercise.targeted_muscles.set(selected_muscle_ids)
+        messages.success(request, "Exercise saved.")
+        return redirect("exercise_detail", exercise_id=exercise_id)
+    except ValidationError as e:
+        messages.error(request, _validation_message(e))
+        return render(
+            request,
+            "gym_journal/library/form.html",
+            _exercise_form_context(
+                exercise=exercise,
+                selected_muscles=list(Muscle.objects.filter(id__in=selected_muscle_ids)),
+            ),
+        )
+
+
+# POST /exercises/:id/delete
+@login_required
+def delete_exercise(request, exercise_id):
+    exercise = get_object_or_404(Exercise, pk=exercise_id)
+    exercise.delete()
+    messages.success(request, "Exercise deleted.")
+    return redirect("exercise_list")

@@ -1,0 +1,5 @@
+[gym_journal_development]
+host=localhost
+user=gym_journal
+dbname=gym_journal_development
+port=5432

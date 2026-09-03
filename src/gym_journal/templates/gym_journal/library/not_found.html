@@ -1,0 +1,10 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Exercise Not Found — Exercise Tracker{% endblock %}
+
+{% block content %}
+<main class="mx-auto w-full max-w-md px-5 pt-16 text-center">
+  <p class="text-muted-foreground">This exercise no longer exists.</p>
+  <a href="{% url 'exercise_list' %}" class="mt-4 inline-block font-bold text-primary">Back to library</a>
+</main>
+{% endblock %}

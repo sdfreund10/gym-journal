@@ -1,0 +1,65 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Sign in — Exercise Tracker{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pt-12 safe-bottom">
+  <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary">Train</p>
+  <h1 class="font-display mt-1 text-5xl uppercase leading-[0.95]">Exercise<br>Tracker</h1>
+  <p class="mt-3 text-base text-muted-foreground">
+    Sign in to log your workouts.
+  </p>
+
+  <form method="post" action="{% url 'login' %}" class="mt-10 flex flex-col gap-5">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-2xl bg-destructive/15 px-4 py-3 text-sm text-destructive">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div>
+      <label for="id_username" class="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Username</label>
+      <input
+        type="text"
+        name="username"
+        id="id_username"
+        autocomplete="username"
+        autofocus
+        required
+        value="{{ form.username.value|default:'' }}"
+        class="w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-base text-foreground outline-none focus:border-primary"
+      >
+      {% for error in form.username.errors %}
+        <p class="mt-2 text-sm text-destructive">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <div>
+      <label for="id_password" class="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Password</label>
+      <input
+        type="password"
+        name="password"
+        id="id_password"
+        autocomplete="current-password"
+        required
+        class="w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-base text-foreground outline-none focus:border-primary"
+      >
+      {% for error in form.password.errors %}
+        <p class="mt-2 text-sm text-destructive">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <button
+      type="submit"
+      class="mt-2 flex w-full items-center justify-center rounded-3xl bg-primary px-6 py-5 font-display text-2xl uppercase text-primary-foreground active:scale-[0.98] transition-transform"
+    >
+      Sign in
+    </button>
+  </form>
+</main>
+{% endblock %}

@@ -1,0 +1,240 @@
+from datetime import timedelta
+
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+from django.utils import timezone
+
+from gym_journal.models import Exercise, Workout, WorkoutSet
+
+from .helpers import make_exercise, make_muscle, make_user, make_workout, make_workout_set
+
+
+class MuscleModelTests(TestCase):
+    def test_create_muscle(self):
+        muscle = make_muscle("Back")
+        self.assertEqual(muscle.name, "Back")
+        self.assertEqual(str(muscle), "Back")
+
+    def test_muscle_name_must_be_unique(self):
+        make_muscle("Legs")
+        with self.assertRaises(Exception):
+            make_muscle("Legs")
+
+
+class ExerciseModelTests(TestCase):
+    def test_create_exercise_with_category_and_muscles(self):
+        chest = make_muscle("Chest")
+        exercise = make_exercise(
+            name="Incline Press",
+            category=Exercise.Category.DUMBBELL,
+            muscles=[chest],
+        )
+
+        self.assertEqual(exercise.name, "Incline Press")
+        self.assertEqual(exercise.category, Exercise.Category.DUMBBELL)
+        self.assertEqual(list(exercise.targeted_muscles.all()), [chest])
+        self.assertEqual(str(exercise), "Incline Press")
+
+    def test_exercise_name_must_be_unique(self):
+        make_exercise(name="Squat")
+        with self.assertRaises(Exception):
+            make_exercise(name="Squat")
+
+
+class WorkoutQuerySetTests(TestCase):
+    def test_active_returns_only_unfinished_workouts(self):
+        user = make_user()
+        active = make_workout(user=user)
+        finished = make_workout(user=user, ended_at=timezone.now())
+
+        active_ids = list(Workout.objects.active().values_list("id", flat=True))
+
+        self.assertIn(active.id, active_ids)
+        self.assertNotIn(finished.id, active_ids)
+
+    def test_for_user_scopes_to_owner(self):
+        alice = make_user("alice")
+        bob = make_user("bob")
+        alice_workout = make_workout(user=alice)
+        make_workout(user=bob)
+
+        self.assertEqual(
+            list(Workout.objects.for_user(alice).values_list("id", flat=True)),
+            [alice_workout.id],
+        )
+
+
+class WorkoutModelTests(TestCase):
+    def setUp(self):
+        self.user = make_user()
+
+    def test_finish_sets_ended_at(self):
+        workout = make_workout(user=self.user)
+        self.assertIsNone(workout.ended_at)
+
+        workout.finish()
+
+        workout.refresh_from_db()
+        self.assertIsNotNone(workout.ended_at)
+
+    def test_start_creates_active_workout(self):
+        workout = Workout.start(self.user)
+
+        self.assertEqual(workout.user, self.user)
+        self.assertIsNone(workout.ended_at)
+        self.assertEqual(Workout.objects.for_user(self.user).active().count(), 1)
+
+    def test_start_raises_when_workout_already_active(self):
+        Workout.start(self.user)
+
+        with self.assertRaises(ValidationError):
+            Workout.start(self.user)
+
+    def test_start_allows_active_workout_for_another_user(self):
+        other = make_user("other")
+        Workout.start(self.user)
+        other_workout = Workout.start(other)
+
+        self.assertEqual(other_workout.user, other)
+        self.assertEqual(Workout.objects.active().count(), 2)
+
+
+class WorkoutSetRecentIdsTests(TestCase):
+    def test_recent_ids_returns_unique_exercises_by_recency(self):
+        user = make_user()
+        workout = make_workout(user=user)
+        squat = make_exercise(name="Squat")
+        bench = make_exercise(name="Bench Press")
+        pullup = make_exercise(name="Pull-up")
+
+        now = timezone.now()
+        make_workout_set(
+            workout,
+            squat,
+            logged_at=now - timedelta(minutes=30),
+        )
+        make_workout_set(
+            workout,
+            bench,
+            logged_at=now - timedelta(minutes=20),
+        )
+        make_workout_set(
+            workout,
+            squat,
+            logged_at=now - timedelta(minutes=10),
+        )
+        make_workout_set(
+            workout,
+            pullup,
+            logged_at=now - timedelta(minutes=5),
+        )
+
+        self.assertEqual(
+            WorkoutSet.recent_ids(user, limit=3),
+            [pullup.id, squat.id, bench.id],
+        )
+
+    def test_recent_ids_are_scoped_to_user(self):
+        alice = make_user("alice")
+        bob = make_user("bob")
+        alice_workout = make_workout(user=alice)
+        bob_workout = make_workout(user=bob)
+        squat = make_exercise(name="Squat")
+        bench = make_exercise(name="Bench Press")
+
+        make_workout_set(alice_workout, squat)
+        make_workout_set(bob_workout, bench)
+
+        self.assertEqual(WorkoutSet.recent_ids(alice), [squat.id])
+        self.assertEqual(WorkoutSet.recent_ids(bob), [bench.id])
+
+
+class WorkoutSetValidationTests(TestCase):
+    def test_non_timed_exercise_requires_reps(self):
+        workout = make_workout()
+        exercise = make_exercise(category=Exercise.Category.BODYWEIGHT)
+        workout_set = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            reps=None,
+        )
+
+        with self.assertRaises(ValidationError):
+            workout_set.full_clean()
+
+    def test_timed_exercise_requires_duration(self):
+        workout = make_workout()
+        exercise = make_exercise(
+            name="Plank",
+            category=Exercise.Category.TIMED,
+        )
+        workout_set = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            duration_seconds=None,
+        )
+
+        with self.assertRaises(ValidationError):
+            workout_set.full_clean()
+
+    def test_timed_exercise_allows_missing_reps(self):
+        workout = make_workout()
+        exercise = make_exercise(
+            name="Plank",
+            category=Exercise.Category.TIMED,
+        )
+        workout_set = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            duration_seconds=60,
+            reps=None,
+        )
+
+        workout_set.full_clean()
+
+
+class WorkoutSetNumberingTests(TestCase):
+    def test_next_set_number_starts_at_one(self):
+        workout = make_workout()
+        exercise = make_exercise()
+
+        self.assertEqual(WorkoutSet.next_set_number(workout, exercise), 1)
+
+    def test_next_set_number_increments_for_same_exercise(self):
+        workout = make_workout()
+        exercise = make_exercise()
+        make_workout_set(workout, exercise, set_number=1)
+
+        self.assertEqual(WorkoutSet.next_set_number(workout, exercise), 2)
+
+    def test_save_assigns_incrementing_set_numbers(self):
+        workout = make_workout()
+        exercise = make_exercise()
+
+        first = make_workout_set(workout, exercise, reps=5)
+        second = make_workout_set(workout, exercise, reps=5)
+
+        self.assertEqual(first.set_number, 1)
+        self.assertEqual(second.set_number, 2)
+
+
+class ExerciseRecencyOrderingTests(TestCase):
+    def test_ordered_by_recency_puts_recent_exercises_first(self):
+        user = make_user()
+        workout = make_workout(user=user)
+        alpha = make_exercise(name="Alpha")
+        beta = make_exercise(name="Beta")
+        gamma = make_exercise(name="Gamma")
+
+        now = timezone.now()
+        make_workout_set(workout, gamma, logged_at=now - timedelta(minutes=1))
+        make_workout_set(workout, alpha, logged_at=now - timedelta(minutes=2))
+
+        ordered = Exercise.ordered_by_recency(user)
+        ordered_names = [exercise.name for exercise in ordered]
+
+        self.assertEqual(ordered_names[:2], ["Gamma", "Alpha"])
+        self.assertIn("Beta", ordered_names)

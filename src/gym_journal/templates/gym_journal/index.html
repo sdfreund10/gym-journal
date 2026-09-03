@@ -1,0 +1,65 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Exercise Tracker — Log Your Sets{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pt-12 safe-bottom">
+  <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary">Train</p>
+  <h1 class="font-display mt-1 text-5xl uppercase leading-[0.95]">Exercise<br>Tracker</h1>
+  <p class="mt-3 text-base text-muted-foreground">
+    {{ exercise_count }} exercise{{ exercise_count|pluralize }} ·
+    {{ finished_workout_count }} workout{{ finished_workout_count|pluralize }} finished
+  </p>
+
+  <div class="mt-10 flex flex-1 flex-col gap-4">
+  {% if active_workout %}
+    <a href="{% url 'active_workout_detail' %}" class="flex w-full items-center gap-4 rounded-3xl bg-primary px-6 py-8 text-left text-primary-foreground active:scale-[0.98] transition-transform">
+      {% include "gym_journal/partials/icons.html" with icon="play" class="h-9 w-9 fill-current" %}
+      <span class="min-w-0">
+        <span class="font-display block text-3xl uppercase">Resume workout</span>
+        <span class="block text-sm font-semibold opacity-80">{{ today_set_count }} set{{ today_set_count|pluralize }} logged so far</span>
+      </span>
+    </a>
+  {% else %}
+    <form method="post" action="{% url 'start_workout' %}" class="w-full">
+      {% csrf_token %}
+      <button type="submit" class="flex w-full items-center gap-4 rounded-3xl bg-primary px-6 py-8 text-left text-primary-foreground active:scale-[0.98] transition-transform">
+        {% include "gym_journal/partials/icons.html" with icon="play" class="h-9 w-9 fill-current" %}
+        <span class="min-w-0">
+          <span class="font-display block text-3xl uppercase">Start workout</span>
+          <span class="block text-sm font-semibold opacity-80">Begin a new session</span>
+        </span>
+      </button>
+    </form>
+  {% endif %}
+
+    <a href="{% url 'exercise_list' %}" class="flex w-full items-center gap-4 rounded-3xl bg-card px-6 py-7 text-left active:scale-[0.98] transition-transform">
+      {% include "gym_journal/partials/icons.html" with icon="dumbbell" class="h-8 w-8 text-accent" %}
+      <span class="min-w-0">
+        <span class="font-display block text-2xl uppercase">Exercise library</span>
+        <span class="block text-sm text-muted-foreground">Create, edit, browse</span>
+      </span>
+    </a>
+
+    {% if last_workout %}
+    <div class="mt-4 rounded-3xl bg-card p-5">
+      <div class="flex items-center gap-2 text-muted-foreground">
+        {% include "gym_journal/partials/icons.html" with icon="list-checks" class="h-4 w-4" %}
+        <span class="text-xs font-bold uppercase tracking-widest">Last session</span>
+      </div>
+      <p class="mt-2 text-lg font-semibold">
+        {{ last_workout_set_count }} set{{ last_workout_set_count|pluralize }} ·
+        {{ last_workout.started_at|date:"M j" }}
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{% url 'logout' %}" class="mt-auto pt-10">
+    {% csrf_token %}
+    <button type="submit" class="text-sm text-muted-foreground underline-offset-4 hover:underline">
+      Sign out
+    </button>
+  </form>
+</main>
+{% endblock %}

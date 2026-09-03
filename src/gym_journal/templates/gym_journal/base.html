@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <title>{% block title %}Exercise Tracker{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}A fast, one-handed workout logger. Build an exercise library and log sets, reps, weight and time in seconds.{% endblock %}">
+  <link rel="icon" href="{% static 'favicon.ico' %}" sizes="any">
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'base.css' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ["Anton", "system-ui", "sans-serif"],
+            sans: ["Barlow", "system-ui", "sans-serif"],
+          },
+          colors: {
+            background: "oklch(0.16 0.012 250)",
+            foreground: "oklch(0.97 0.005 250)",
+            card: "oklch(0.22 0.014 252)",
+            primary: {
+              DEFAULT: "oklch(0.87 0.21 125)",
+              foreground: "oklch(0.19 0.03 130)",
+            },
+            secondary: {
+              DEFAULT: "oklch(0.29 0.016 252)",
+              foreground: "oklch(0.97 0.005 250)",
+            },
+            muted: {
+              foreground: "oklch(0.7 0.017 252)",
+            },
+            accent: {
+              DEFAULT: "oklch(0.72 0.16 45)",
+              foreground: "oklch(0.18 0.02 45)",
+            },
+            destructive: {
+              DEFAULT: "oklch(0.62 0.22 25)",
+              foreground: "oklch(0.98 0.005 250)",
+            },
+            border: "oklch(0.31 0.016 252)",
+          },
+        },
+      },
+      plugins: [
+        function ({ addUtilities }) {
+          addUtilities({
+            ".safe-bottom": {
+              "padding-bottom": "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+            },
+          });
+        },
+      ],
+    };
+  </script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-background text-foreground font-sans antialiased">
+  {% include "gym_journal/partials/messages.html" %}
+  {% block content %}{% endblock %}
+  <script src="{% static 'stepper.js' %}" defer></script>
+  <script src="{% static 'app.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
