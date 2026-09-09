@@ -1,7 +1,9 @@
+## Bugs
+- Cannot add exercise while in active workout
+- Cannot log second set of an exercise
+
 ## Future Features
 - Mobile app
-- Implement super simple auth
-    - Manually provisioned users, simple password check
 - Exercise history per-user
     - Track progress
 - Leaderboard

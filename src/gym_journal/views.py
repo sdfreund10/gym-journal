@@ -212,6 +212,8 @@ def log_set(request, exercise_id):
         reps=_optional_post_value(request.POST, "reps"),
         duration_seconds=_optional_post_value(request.POST, "duration_seconds"),
     )
+    new_set.set_number = WorkoutSet.next_set_number(active_workout, exercise)
+
     try:
         new_set.full_clean()
         new_set.save()

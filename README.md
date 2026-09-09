@@ -179,11 +179,12 @@ With `DEBUG = False`, Django does not serve CSS/JS. After `collectstatic`, point
 
 ### 4. Gunicorn
 
-Gunicorn is a Python dependency in this project (`uv sync` installs it). Run it from the project root so `.env` loads, bound to localhost behind nginx:
+Gunicorn is a Python dependency in this project (`uv sync` installs it). The Django project package `config/` lives at the repo root (not inside the installed `gym_journal` package), so gunicorn must run with that directory on `PYTHONPATH`. Use `--chdir` to the project root (where `manage.py` and `config/` live) so `.env` loads and imports succeed:
 
 ```bash
 DJANGO_SETTINGS_MODULE=config.production \
   uv run gunicorn config.wsgi:application \
+  --chdir /path/to/gym-journal \
   --bind 127.0.0.1:8000 \
   --workers 2
 ```
@@ -200,14 +201,16 @@ User=www-data
 Group=www-data
 WorkingDirectory=/path/to/gym-journal
 Environment=DJANGO_SETTINGS_MODULE=config.production
-ExecStart=/path/to/gym-journal/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 2
+ExecStart=/path/to/gym-journal/.venv/bin/gunicorn config.wsgi:application --chdir /path/to/gym-journal --bind 127.0.0.1:8000 --workers 2
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Adjust `User`, `WorkingDirectory`, and `ExecStart` to the deploy user and path. Then:
+Adjust `User`, `WorkingDirectory`, `--chdir`, and `ExecStart` paths to match your deploy directory (the folder that contains `manage.py` and `config/`). If gunicorn fails with `ModuleNotFoundError: No module named 'config'`, the `--chdir` path is wrong or `config/` is missing on the server.
+
+Then:
 
 ```bash
 sudo systemctl daemon-reload
