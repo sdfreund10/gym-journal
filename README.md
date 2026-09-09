@@ -101,17 +101,24 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ \
 
 ## Tests
 
-Tests use an in-memory SQLite database and do not require PostgreSQL:
+Install dev dependencies (pytest), then run the suite. Tests use in-memory SQLite and do not require PostgreSQL:
+
+```bash
+uv sync --group dev
+uv run pytest
+```
+
+Run a single module or test:
+
+```bash
+uv run pytest src/gym_journal/tests/test_views.py
+uv run pytest src/gym_journal/tests/test_views.py::IndexViewTests
+```
+
+Django’s runner still works if you prefer it:
 
 ```bash
 uv run python manage.py test gym_journal --settings=config.test_settings
-```
-
-Run a single test module or case:
-
-```bash
-uv run python manage.py test gym_journal.tests.test_views --settings=config.test_settings
-uv run python manage.py test gym_journal.tests.test_views.IndexViewTests --settings=config.test_settings
 ```
 
 ## Common commands
@@ -123,13 +130,15 @@ uv run python manage.py test gym_journal.tests.test_views.IndexViewTests --setti
 | Seed dev data | `uv run python manage.py seed_dev` |
 | Create migrations after model changes | `uv run python manage.py makemigrations` |
 | Run development server | `uv run python manage.py runserver` |
-| Run tests | `uv run python manage.py test gym_journal --settings=config.test_settings` |
+| Run tests | `uv sync --group dev` then `uv run pytest` |
 | Django system checks | `uv run python manage.py check` |
 | Open Django shell | `uv run python manage.py shell` |
 
 ## Deployment
 
 Intended setup: nginx proxying to gunicorn server.
+
+After the first manual install below, continuous deploys are handled by GitHub Actions (pytest, then SSH deploy on `main`). One-time CI setup (deploy user, secrets, GitHub deploy key) is in [DEPLOY.md](DEPLOY.md).
 
 ### 1. Copy the app
 
@@ -242,6 +251,20 @@ server {
 ```
 
 Firewall: allow 80/443 publicly; keep Postgres and Gunicorn on localhost.
+
+### 6. Continuous deploy (GitHub Actions)
+
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) runs **pytest** on pushes and PRs to `main`. On push to `main` (or a manual workflow run), if tests pass it SSHs to the droplet and runs:
+
+```bash
+git pull --ff-only
+uv sync
+uv run python manage.py migrate --settings=config.production
+uv run python manage.py collectstatic --noinput --settings=config.production
+sudo systemctl restart gym-journal
+```
+
+Required Actions secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`. See [DEPLOY.md](DEPLOY.md).
 
 ### Notes
 
