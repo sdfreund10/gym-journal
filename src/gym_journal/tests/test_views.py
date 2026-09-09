@@ -222,6 +222,22 @@ class LogSetViewTests(AuthenticatedTestCase):
 
 
 class DeleteSetViewTests(AuthenticatedTestCase):
+    def test_delete_set_removes_owned_set_and_redirects(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise()
+        workout_set = make_workout_set(workout, exercise)
+
+        response = self.client.post(
+            reverse("delete_set", kwargs={"set_id": workout_set.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("active_workout_detail"))
+        self.assertContains(response, "Set removed.")
+        self.assertFalse(
+            workout.workoutset_set.filter(pk=workout_set.pk).exists()
+        )
+
     def test_delete_set_404_for_other_users_set(self):
         other = make_user("other")
         workout = make_workout(user=other)
@@ -336,3 +352,44 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "New exercise")
         self.assertContains(response, "already exists")
+
+    def test_update_exercise_saves_changes_and_redirects(self):
+        chest = make_muscle("Chest")
+        back = make_muscle("Back")
+        exercise = make_exercise(
+            name="Flyes",
+            category=Exercise.Category.DUMBBELL,
+            muscles=[chest],
+        )
+
+        response = self.client.post(
+            reverse("exercise_update", kwargs={"exercise_id": exercise.pk}),
+            data={
+                "name": "Cable Row",
+                "category": Exercise.Category.MACHINE,
+                "targeted_muscles": [str(back.pk)],
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("exercise_detail", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertContains(response, "Exercise saved.")
+        exercise.refresh_from_db()
+        self.assertEqual(exercise.name, "Cable Row")
+        self.assertEqual(exercise.category, Exercise.Category.MACHINE)
+        self.assertEqual(list(exercise.targeted_muscles.all()), [back])
+
+    def test_delete_exercise_removes_exercise_and_redirects(self):
+        exercise = make_exercise(name="Skull Crushers")
+
+        response = self.client.post(
+            reverse("exercise_delete", kwargs={"exercise_id": exercise.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("exercise_list"))
+        self.assertContains(response, "Exercise deleted.")
+        self.assertFalse(Exercise.objects.filter(pk=exercise.pk).exists())

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -217,3 +219,21 @@ class ExerciseApiTests(ApiAuthMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data["results"][0]
         self.assertEqual(result["last_weight"], "225.0")
+
+    def test_exercise_list_ordered_by_recency(self):
+        alpha = make_exercise(name="Alpha", muscles=[self.muscle])
+        make_exercise(name="Beta", muscles=[self.muscle])
+        gamma = make_exercise(name="Gamma", muscles=[self.muscle])
+        workout = make_workout(user=self.user)
+        now = timezone.now()
+        make_workout_set(workout, gamma, logged_at=now - timedelta(minutes=1))
+        make_workout_set(workout, alpha, logged_at=now - timedelta(minutes=2))
+
+        response = self.client.get(
+            reverse("api_exercise_list"),
+            {"ordered": "recency"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [item["name"] for item in response.data["results"]]
+        self.assertEqual(names[:2], ["Gamma", "Alpha"])
+        self.assertIn("Beta", names)

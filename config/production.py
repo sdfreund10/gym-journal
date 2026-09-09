@@ -18,13 +18,13 @@ Optional:
 
 import os
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
+from .database_url import database_from_url
 from .settings import *  # noqa: F403
 
 DEBUG = False
@@ -32,29 +32,6 @@ DEBUG = False
 
 def _csv_env(name):
     return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
-
-
-def _database_from_url(url):
-    parsed = urlparse(url)
-    if parsed.scheme not in {"postgres", "postgresql", "pgsql"}:
-        raise ImproperlyConfigured("DATABASE_URL must be a postgres URL.")
-
-    options = {}
-    sslmode = parse_qs(parsed.query).get("sslmode", [None])[0]
-    if sslmode:
-        options["sslmode"] = sslmode
-
-    return {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": unquote(parsed.path.lstrip("/")),
-        "USER": unquote(parsed.username or ""),
-        "PASSWORD": unquote(parsed.password or ""),
-        "HOST": parsed.hostname or "",
-        "PORT": str(parsed.port or 5432),
-        "CONN_MAX_AGE": int(os.environ.get("DJANGO_CONN_MAX_AGE", "60")),
-        "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": options,
-    }
 
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
@@ -78,7 +55,7 @@ CORS_ALLOWED_ORIGINS = _csv_env("DJANGO_CORS_ALLOWED_ORIGINS")
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
     raise ImproperlyConfigured("DATABASE_URL must be set.")
-DATABASES = {"default": _database_from_url(database_url)}
+DATABASES = {"default": database_from_url(database_url)}
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 

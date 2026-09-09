@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -238,3 +239,39 @@ class ExerciseRecencyOrderingTests(TestCase):
 
         self.assertEqual(ordered_names[:2], ["Gamma", "Alpha"])
         self.assertIn("Beta", ordered_names)
+
+
+class ExerciseLastWeightTests(TestCase):
+    def test_last_weight_returns_none_without_history(self):
+        user = make_user()
+        exercise = make_exercise()
+
+        self.assertIsNone(exercise.last_weight(user))
+
+    def test_last_weight_ignores_null_weights(self):
+        user = make_user()
+        workout = make_workout(user=user)
+        exercise = make_exercise(category=Exercise.Category.BODYWEIGHT)
+        make_workout_set(workout, exercise, weight=None, reps=10)
+
+        self.assertIsNone(exercise.last_weight(user))
+
+    def test_last_weight_is_scoped_to_user(self):
+        user = make_user("athlete")
+        other = make_user("other")
+        exercise = make_exercise()
+        make_workout_set(make_workout(user=other), exercise, weight=315, reps=1)
+
+        self.assertIsNone(exercise.last_weight(user))
+
+    def test_last_weight_returns_most_recent(self):
+        user = make_user()
+        workout = make_workout(user=user)
+        exercise = make_exercise()
+        now = timezone.now()
+        make_workout_set(
+            workout, exercise, weight=135, reps=8, logged_at=now - timedelta(days=1)
+        )
+        make_workout_set(workout, exercise, weight=155, reps=5, logged_at=now)
+
+        self.assertEqual(exercise.last_weight(user), Decimal("155.0"))
