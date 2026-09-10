@@ -113,6 +113,15 @@ class WorkoutApiTests(ApiAuthMixin, APITestCase):
         self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(WorkoutSet.objects.filter(pk=set_id).exists())
 
+    def test_delete_set_blocked_on_finished_workout(self):
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+        workout_set = make_workout_set(workout, self.exercise)
+
+        deleted = self.client.delete(reverse("api_delete_set", args=[workout_set.id]))
+
+        self.assertEqual(deleted.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(WorkoutSet.objects.filter(pk=workout_set.id).exists())
+
     def test_log_second_set_of_same_exercise(self):
         self.client.post(reverse("api_start_workout"), format="json")
         first = self.client.post(
@@ -180,6 +189,7 @@ class WorkoutApiTests(ApiAuthMixin, APITestCase):
         summary = self.client.get(reverse("api_summary"))
         self.assertEqual(summary.status_code, status.HTTP_200_OK)
         self.assertEqual(summary.data["active_workout_id"], workout.id)
+        self.assertEqual(summary.data["active_set_count"], 1)
         self.assertEqual(summary.data["today_set_count"], 1)
         self.assertEqual(summary.data["finished_workout_count"], 1)
         self.assertEqual(summary.data["last_workout"]["id"], finished.id)
@@ -227,6 +237,18 @@ class ExerciseApiTests(ApiAuthMixin, APITestCase):
         )
         self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Exercise.objects.filter(pk=exercise_id).exists())
+
+    def test_exercise_delete_blocked_when_sets_exist(self):
+        exercise = make_exercise(name="Bench Press", muscles=[self.muscle])
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+        make_workout_set(workout, exercise)
+
+        deleted = self.client.delete(
+            reverse("api_exercise_detail", args=[exercise.id])
+        )
+
+        self.assertEqual(deleted.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Exercise.objects.filter(pk=exercise.id).exists())
 
     def test_exercise_list_includes_last_weight(self):
         exercise = make_exercise(name="Deadlift", muscles=[self.muscle])

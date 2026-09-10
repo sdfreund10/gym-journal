@@ -1,0 +1,7 @@
+<div class="mb-4 flex items-center justify-between gap-4">
+  <a href="{{ back_url }}" class="inline-flex min-w-0 items-center gap-1 text-sm font-bold text-muted-foreground">
+    {% include "gym_journal/partials/icons.html" with icon="chevron-left" class="h-4 w-4 shrink-0" %}
+    <span class="truncate">{{ back_label }}</span>
+  </a>
+  {% include "gym_journal/partials/sign_out.html" %}
+</div>

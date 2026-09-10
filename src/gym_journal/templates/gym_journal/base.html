@@ -56,6 +56,9 @@
             ".safe-bottom": {
               "padding-bottom": "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
             },
+            ".pb-dock": {
+              "padding-bottom": "calc(env(safe-area-inset-bottom, 0px) + 7rem)",
+            },
           });
         },
       ],
@@ -63,9 +66,11 @@
   </script>
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-background text-foreground font-sans antialiased">
+<body class="flex min-h-dvh flex-col bg-background text-foreground font-sans antialiased">
   {% include "gym_journal/partials/messages.html" %}
-  {% block content %}{% endblock %}
+  <div class="flex min-h-0 flex-1 flex-col">
+    {% block content %}{% endblock %}
+  </div>
   <script src="{% static 'stepper.js' %}" defer></script>
   <script src="{% static 'app.js' %}" defer></script>
   {% block extra_js %}{% endblock %}

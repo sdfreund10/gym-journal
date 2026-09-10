@@ -83,6 +83,7 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No active workout.")
+        self.assertContains(response, reverse("index"))
 
     def test_shows_active_workout_sets(self):
         workout = make_workout(user=self.user)
@@ -91,8 +92,14 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
 
         response = self.client.get(reverse("active_workout_detail"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, exercise.name)
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
+        detail = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+        self.assertContains(detail, exercise.name)
 
     def test_workout_detail_404_for_other_users_workout(self):
         other = make_user("other")
@@ -103,6 +110,32 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_finished_workout_detail_is_read_only(self):
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+        exercise = make_exercise()
+        make_workout_set(workout, exercise)
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Completed")
+        self.assertNotContains(response, reverse("finish_workout"))
+        self.assertNotContains(response, "Add Exercise")
+        self.assertNotContains(response, 'aria-label="Delete set"')
+
+    def test_finished_workout_detail_links_back_to_history(self):
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+            {"from": "history"},
+        )
+
+        self.assertContains(response, reverse("workout_history"))
+        self.assertContains(response, "History")
 
 
 class WorkoutPickExerciseViewTests(AuthenticatedTestCase):
@@ -187,7 +220,7 @@ class StartWorkoutViewTests(AuthenticatedTestCase):
 
 
 class LogSetViewTests(AuthenticatedTestCase):
-    def test_log_set_redirects_to_workout_detail(self):
+    def test_log_set_redirects_to_workout_summary(self):
         workout = make_workout(user=self.user)
         exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
 
@@ -196,7 +229,10 @@ class LogSetViewTests(AuthenticatedTestCase):
             data={"weight": "135", "reps": "8"},
         )
 
-        self.assertRedirects(response, reverse("active_workout_detail"))
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
         self.assertEqual(workout.workoutset_set.count(), 1)
 
     def test_log_second_set_of_same_exercise(self):
@@ -206,7 +242,7 @@ class LogSetViewTests(AuthenticatedTestCase):
 
         response = self.client.post(
             reverse("log_set", kwargs={"exercise_id": exercise.pk}),
-            data={"weight": "135", "reps": "8", "action": "close"},
+            data={"weight": "135", "reps": "8"},
             follow=True,
         )
 
@@ -217,17 +253,20 @@ class LogSetViewTests(AuthenticatedTestCase):
             [1, 2],
         )
 
-    def test_log_set_action_log_redirects_to_workout_screen(self):
-        make_workout(user=self.user)
+    def test_log_set_shows_success_on_workout_page(self):
+        workout = make_workout(user=self.user)
         exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
 
         response = self.client.post(
             reverse("log_set", kwargs={"exercise_id": exercise.pk}),
-            data={"weight": "135", "reps": "8", "action": "log"},
+            data={"weight": "135", "reps": "8"},
             follow=True,
         )
 
-        self.assertRedirects(response, reverse("active_workout_detail"))
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
         self.assertContains(response, "Set logged.")
 
     def test_log_set_redirects_home_when_no_active_workout(self):
@@ -271,9 +310,31 @@ class DeleteSetViewTests(AuthenticatedTestCase):
             follow=True,
         )
 
-        self.assertRedirects(response, reverse("active_workout_detail"))
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
         self.assertContains(response, "Set removed.")
         self.assertFalse(
+            workout.workoutset_set.filter(pk=workout_set.pk).exists()
+        )
+
+    def test_delete_set_blocked_on_finished_workout(self):
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+        exercise = make_exercise()
+        workout_set = make_workout_set(workout, exercise)
+
+        response = self.client.post(
+            reverse("delete_set", kwargs={"set_id": workout_set.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
+        self.assertContains(response, "Cannot modify a finished workout.")
+        self.assertTrue(
             workout.workoutset_set.filter(pk=workout_set.pk).exists()
         )
 
@@ -290,6 +351,49 @@ class DeleteSetViewTests(AuthenticatedTestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(
             workout.workoutset_set.filter(pk=workout_set.pk).exists()
+        )
+
+
+class WorkoutHistoryViewTests(AuthenticatedTestCase):
+    def test_workout_history_lists_finished_workouts(self):
+        finished = make_workout(user=self.user, ended_at=timezone.now())
+        make_workout_set(finished, make_exercise())
+        active = make_workout(user=self.user)
+
+        response = self.client.get(reverse("workout_history"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "History")
+        self.assertContains(response, reverse("workout_detail", kwargs={"workout_id": finished.id}))
+        self.assertContains(response, "1 set")
+        self.assertNotContains(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": active.id}),
+        )
+
+    def test_workout_history_excludes_other_users_workouts(self):
+        finished = make_workout(user=self.user, ended_at=timezone.now())
+        other_finished = make_workout(user=make_user("other"), ended_at=timezone.now())
+
+        response = self.client.get(reverse("workout_history"))
+
+        self.assertContains(response, reverse("workout_detail", kwargs={"workout_id": finished.id}))
+        self.assertNotContains(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": other_finished.id}),
+        )
+
+    def test_index_links_last_session_to_workout_detail(self):
+        finished = make_workout(user=self.user, ended_at=timezone.now())
+        make_workout_set(finished, make_exercise())
+
+        response = self.client.get(reverse("index"))
+
+        self.assertContains(response, "Last session")
+        self.assertContains(response, reverse("workout_history"))
+        self.assertContains(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": finished.id}),
         )
 
 
@@ -336,6 +440,31 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Romanian Deadlift")
+
+    def test_exercise_detail_hides_delete_when_sets_exist(self):
+        exercise = make_exercise(name="Squat")
+        make_workout_set(make_workout(user=self.user), exercise)
+
+        response = self.client.get(
+            reverse("exercise_detail", kwargs={"exercise_id": exercise.pk})
+        )
+
+        self.assertContains(response, "Exercises with logged sets cannot be deleted.")
+        self.assertContains(response, "You have 1 set recorded")
+        self.assertNotContains(response, 'data-toggle="delete-confirm"')
+
+    def test_exercise_detail_hides_delete_when_other_users_have_sets(self):
+        exercise = make_exercise(name="Squat")
+        other = make_user("other-lifter")
+        make_workout_set(make_workout(user=other), exercise)
+
+        response = self.client.get(
+            reverse("exercise_detail", kwargs={"exercise_id": exercise.pk})
+        )
+
+        self.assertContains(response, "Exercises with logged sets cannot be deleted.")
+        self.assertContains(response, "Other athletes have 1 set recorded")
+        self.assertNotContains(response, 'data-toggle="delete-confirm"')
 
     def test_exercise_detail_shows_not_found_for_missing_exercise(self):
         response = self.client.get(
@@ -455,3 +584,31 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
         self.assertRedirects(response, reverse("exercise_list"))
         self.assertContains(response, "Exercise deleted.")
         self.assertFalse(Exercise.objects.filter(pk=exercise.pk).exists())
+
+    def test_delete_exercise_blocked_when_sets_exist(self):
+        exercise = make_exercise(name="Skull Crushers")
+        make_workout_set(make_workout(user=self.user), exercise)
+
+        response = self.client.post(
+            reverse("exercise_delete", kwargs={"exercise_id": exercise.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("exercise_detail", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertContains(response, "Cannot delete an exercise with logged sets.")
+        self.assertTrue(Exercise.objects.filter(pk=exercise.pk).exists())
+
+    def test_delete_exercise_blocked_when_other_users_have_sets(self):
+        exercise = make_exercise(name="Skull Crushers")
+        make_workout_set(make_workout(user=make_user("other-lifter")), exercise)
+
+        response = self.client.post(
+            reverse("exercise_delete", kwargs={"exercise_id": exercise.pk}),
+            follow=True,
+        )
+
+        self.assertContains(response, "Cannot delete an exercise with logged sets.")
+        self.assertTrue(Exercise.objects.filter(pk=exercise.pk).exists())
