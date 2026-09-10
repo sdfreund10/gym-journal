@@ -223,9 +223,7 @@ def log_set(request, exercise_id):
         new_set.full_clean()
         new_set.save()
         messages.success(request, "Set logged.")
-        if request.POST.get("action") == "log":
-            return redirect("workout_log_set", exercise_id=exercise_id)
-        return redirect("workout_detail", workout_id=active_workout.id)
+        return redirect("active_workout_detail")
     except ValidationError as e:
         messages.error(request, _validation_message(e))
         return redirect("workout_log_set", exercise_id=exercise_id)
