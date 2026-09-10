@@ -63,7 +63,7 @@
       });
     });
 
-    const lastWeightBtn = root.parentElement?.querySelector("[data-last-weight]");
+    const lastWeightBtn = root.querySelector("[data-last-weight]");
     if (lastWeightBtn) {
       lastWeightBtn.addEventListener("click", () => {
         const last = lastWeightBtn.dataset.lastWeight;

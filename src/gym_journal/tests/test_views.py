@@ -121,6 +121,14 @@ class WorkoutPickExerciseViewTests(AuthenticatedTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Deadlift")
 
+    def test_picker_links_to_new_exercise_during_active_workout(self):
+        make_workout(user=self.user)
+
+        response = self.client.get(reverse("workout_pick_exercise"))
+
+        self.assertContains(response, reverse("exercise_new"))
+        self.assertContains(response, "from=workout")
+
 
 class WorkoutLogSetViewTests(AuthenticatedTestCase):
     def test_shows_no_active_page_when_no_workout(self):
@@ -190,6 +198,40 @@ class LogSetViewTests(AuthenticatedTestCase):
 
         self.assertRedirects(response, reverse("workout_detail", kwargs={"workout_id": workout.id}))
         self.assertEqual(workout.workoutset_set.count(), 1)
+
+    def test_log_second_set_of_same_exercise(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        make_workout_set(workout, exercise, weight=135, reps=8)
+
+        response = self.client.post(
+            reverse("log_set", kwargs={"exercise_id": exercise.pk}),
+            data={"weight": "135", "reps": "8", "action": "close"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Set logged.")
+        self.assertEqual(workout.workoutset_set.count(), 2)
+        self.assertEqual(
+            list(workout.workoutset_set.order_by("set_number").values_list("set_number", flat=True)),
+            [1, 2],
+        )
+
+    def test_log_set_action_log_stays_on_form_for_next_set(self):
+        make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+
+        response = self.client.post(
+            reverse("log_set", kwargs={"exercise_id": exercise.pk}),
+            data={"weight": "135", "reps": "8", "action": "log"},
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertContains(response, "Set 2")
 
     def test_log_set_redirects_home_when_no_active_workout(self):
         exercise = make_exercise()
@@ -336,6 +378,29 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
         self.assertTrue(Exercise.objects.filter(name="Cable Fly").exists())
         exercise = Exercise.objects.get(name="Cable Fly")
         self.assertEqual(list(exercise.targeted_muscles.all()), [chest])
+
+    def test_create_exercise_during_active_workout_returns_to_log_set(self):
+        make_workout(user=self.user)
+        chest = make_muscle("Chest")
+
+        response = self.client.post(
+            reverse("exercise_create"),
+            data={
+                "name": "Cable Fly",
+                "category": Exercise.Category.MACHINE,
+                "targeted_muscles": [str(chest.pk)],
+                "from": "workout",
+            },
+            follow=True,
+        )
+
+        exercise = Exercise.objects.get(name="Cable Fly")
+        self.assertRedirects(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertContains(response, "Cable Fly")
+        self.assertContains(response, "Set 1")
 
     def test_create_exercise_shows_error_for_duplicate_name(self):
         make_exercise(name="Bench Press")

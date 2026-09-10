@@ -113,6 +113,24 @@ class WorkoutApiTests(ApiAuthMixin, APITestCase):
         self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(WorkoutSet.objects.filter(pk=set_id).exists())
 
+    def test_log_second_set_of_same_exercise(self):
+        self.client.post(reverse("api_start_workout"), format="json")
+        first = self.client.post(
+            reverse("api_log_set"),
+            {"exercise": self.exercise.id, "weight": "135.0", "reps": 5},
+            format="json",
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(first.data["set_number"], 1)
+
+        second = self.client.post(
+            reverse("api_log_set"),
+            {"exercise": self.exercise.id, "weight": "140.0", "reps": 4},
+            format="json",
+        )
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.data["set_number"], 2)
+
     def test_log_set_validation_for_timed_and_reps(self):
         self.client.post(reverse("api_start_workout"), format="json")
 
