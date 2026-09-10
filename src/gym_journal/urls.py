@@ -13,6 +13,7 @@ urlpatterns = [
         views.workout_log_set,
         name="workout_log_set",
     ),
+    path("workouts/", views.workout_history, name="workout_history"),
     path("workouts/start/", views.start_workout, name="start_workout"),
     path("workouts/finish/", views.finish_workout, name="finish_workout"),
     path("workout/<int:workout_id>/", views.workout_detail, name="workout_detail"),

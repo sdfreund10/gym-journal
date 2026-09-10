@@ -3,11 +3,9 @@
 {% block title %}{{ exercise.name }} — Exercise Tracker{% endblock %}
 
 {% block content %}
-<main class="mx-auto w-full max-w-md px-5 pb-16 pt-10">
-  <a href="{% url 'exercise_list' %}" class="mb-4 inline-flex items-center gap-1 text-sm font-bold text-muted-foreground">
-    {% include "gym_journal/partials/icons.html" with icon="chevron-left" class="h-4 w-4" %}
-    Library
-  </a>
+<main class="mx-auto w-full max-w-md px-5 pb-8 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
+  {% url 'exercise_list' as library_url %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=library_url back_label="Library" %}
   <h1 class="font-display text-4xl uppercase leading-tight">{{ exercise.name }}</h1>
   <p class="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">{{ exercise.get_category_display }}</p>
 
@@ -25,13 +23,28 @@
       {% include "gym_journal/partials/icons.html" with icon="pencil" class="h-5 w-5" %}
       Edit
     </a>
+    {% if can_delete_exercise %}
     <button type="button" class="rounded-2xl bg-card px-6 py-5 text-destructive active:scale-95 transition-transform" data-toggle="delete-confirm" aria-label="Delete exercise">
       {% include "gym_journal/partials/icons.html" with icon="trash" class="h-5 w-5" %}
     </button>
+    {% endif %}
   </div>
 
+  {% if not can_delete_exercise %}
+  <p class="mt-4 text-sm text-muted-foreground">
+    Exercises with logged sets cannot be deleted.
+    {% if logged_set_count %}
+    You have {{ logged_set_count }} set{{ logged_set_count|pluralize }} recorded for this exercise.
+    {% elif global_set_count %}
+    Other athletes have {{ global_set_count }} set{{ global_set_count|pluralize }} recorded for this exercise.
+    {% endif %}
+  </p>
+  {% endif %}
+
+  {% if can_delete_exercise %}
   <div id="delete-confirm" class="mt-4 rounded-2xl bg-card p-5" hidden>
     <p class="font-semibold">Delete “{{ exercise.name }}”?</p>
+    <p class="mt-2 text-sm text-muted-foreground">This cannot be undone.</p>
     <div class="mt-4 flex gap-3">
       <button type="button" class="flex-1 rounded-xl bg-secondary py-4 font-bold active:scale-95 transition-transform" data-toggle="delete-confirm">Keep</button>
       <form method="post" action="{% url 'exercise_delete' exercise.pk %}" class="flex-1">
@@ -40,5 +53,6 @@
       </form>
     </div>
   </div>
+  {% endif %}
 </main>
 {% endblock %}
