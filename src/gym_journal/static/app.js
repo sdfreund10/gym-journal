@@ -21,7 +21,7 @@
     if (!input || !list) return;
 
     const items = Array.from(list.querySelectorAll("[data-search-item]"));
-    const emptyState = list.querySelector("[data-search-empty]");
+    const emptyStates = Array.from(list.querySelectorAll("[data-search-empty]"));
 
     function filter() {
       const query = input.value.trim().toLowerCase();
@@ -38,9 +38,9 @@
         if (show) visible += 1;
       });
 
-      if (emptyState) {
+      emptyStates.forEach((emptyState) => {
         emptyState.hidden = visible > 0;
-      }
+      });
     }
 
     input.addEventListener("input", filter);
@@ -65,20 +65,6 @@
     });
   }
 
-  function initChipSelect(label, onActivate, sync) {
-    const input = label.querySelector("input");
-    if (!input) return;
-
-    label.addEventListener("click", (event) => {
-      // Safari does not toggle inputs inside labels when they use pointer-events-none.
-      event.preventDefault();
-      onActivate(input);
-      sync();
-    });
-    input.addEventListener("change", sync);
-    sync();
-  }
-
   function initChipGroups() {
     document.querySelectorAll("[data-chip-group='category']").forEach((group) => {
       const syncGroup = () => {
@@ -92,24 +78,23 @@
         });
       };
 
-      group.querySelectorAll("[data-chip-select]").forEach((label) => {
-        initChipSelect(label, (input) => {
-          input.checked = true;
-        }, syncGroup);
+      group.querySelectorAll("input[type='radio']").forEach((input) => {
+        input.addEventListener("change", syncGroup);
       });
+      syncGroup();
     });
 
     document.querySelectorAll("[data-chip-group='muscles']").forEach((group) => {
       group.querySelectorAll("[data-chip-select]").forEach((label) => {
+        const input = label.querySelector("input");
+        if (!input) return;
+
         const sync = () => {
-          const input = label.querySelector("input");
-          if (!input) return;
           setClasses(label, input.checked, MUSCLE_CHIP_ACTIVE, MUSCLE_CHIP_INACTIVE);
         };
 
-        initChipSelect(label, (input) => {
-          input.checked = !input.checked;
-        }, sync);
+        input.addEventListener("change", sync);
+        sync();
       });
     });
   }

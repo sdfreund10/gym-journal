@@ -150,6 +150,9 @@ class SummarySerializer(serializers.Serializer):
     active_workout_id = serializers.IntegerField(allow_null=True)
     exercise_count = serializers.IntegerField()
     finished_workout_count = serializers.IntegerField()
-    today_set_count = serializers.IntegerField()
+    active_set_count = serializers.IntegerField()
+    today_set_count = serializers.IntegerField(
+        help_text="Deprecated. Use active_set_count."
+    )
     last_workout = WorkoutListSerializer(allow_null=True)
     last_workout_set_count = serializers.IntegerField()

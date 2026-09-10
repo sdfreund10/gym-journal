@@ -1,7 +1,7 @@
 {% if messages %}
-<div id="toast-stack" class="fixed top-[calc(env(safe-area-inset-top,0px)+1rem)] left-1/2 z-50 flex w-[min(100%-2rem,28rem)] -translate-x-1/2 flex-col gap-2 transition-opacity duration-300" aria-live="polite">
+<div id="toast-stack" class="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-50 flex w-[min(100%-2rem,28rem)] -translate-x-1/2 flex-col gap-2 transition-opacity duration-300" aria-live="polite">
   {% for message in messages %}
-  <div class="rounded-2xl px-5 py-3.5 text-center font-bold shadow-lg {% if message.tags == 'success' %}bg-primary text-primary-foreground{% elif message.tags == 'error' %}bg-destructive text-destructive-foreground{% else %}bg-card text-foreground{% endif %}" role="status">{{ message }}</div>
+  <div class="pointer-events-auto rounded-2xl px-5 py-3.5 text-center text-sm font-bold shadow-lg {% if message.tags == 'success' %}bg-primary text-primary-foreground{% elif message.tags == 'error' %}bg-destructive text-destructive-foreground{% else %}bg-card text-foreground{% endif %}" role="status">{{ message }}</div>
   {% endfor %}
 </div>
 {% endif %}

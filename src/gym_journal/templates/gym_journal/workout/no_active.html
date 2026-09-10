@@ -3,7 +3,9 @@
 {% block title %}Workout — Exercise Tracker{% endblock %}
 
 {% block content %}
-<main class="mx-auto w-full max-w-md px-5 pt-20 text-center">
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] text-center">
+  {% url 'index' as home_url %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=home_url back_label="Home" %}
   <p class="text-muted-foreground">No active workout.</p>
   <form method="post" action="{% url 'start_workout' %}" class="mt-5">
     {% csrf_token %}

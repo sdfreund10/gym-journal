@@ -3,7 +3,19 @@
 {% block title %}{% if exercise.pk %}Edit {{ exercise.name }}{% else %}New Exercise{% endif %} — Exercise Tracker{% endblock %}
 
 {% block content %}
-<main class="mx-auto flex min-h-screen w-full max-w-md flex-col pt-10">
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
+  <div class="px-5">
+    {% if from_workout %}
+      {% url 'workout_pick_exercise' as form_back_url %}
+      {% include "gym_journal/partials/page_nav.html" with back_url=form_back_url back_label="Workout" %}
+    {% elif exercise.pk %}
+      {% url 'exercise_detail' exercise.pk as form_back_url %}
+      {% include "gym_journal/partials/page_nav.html" with back_url=form_back_url back_label=exercise.name %}
+    {% else %}
+      {% url 'exercise_list' as form_back_url %}
+      {% include "gym_journal/partials/page_nav.html" with back_url=form_back_url back_label="Library" %}
+    {% endif %}
+  </div>
   <h1 class="font-display px-5 pb-4 text-3xl uppercase">{% if exercise.pk %}Edit exercise{% else %}New exercise{% endif %}</h1>
 
   <form method="post" action="{% if exercise.pk %}{% url 'exercise_update' exercise.pk %}{% else %}{% url 'exercise_create' %}{% endif %}" id="exercise-form" class="flex min-h-0 flex-1 flex-col">
@@ -12,7 +24,7 @@
     <input type="hidden" name="from" value="workout">
     {% endif %}
 
-    <div class="flex-1 space-y-8 overflow-y-auto px-5 pb-32 pt-2">
+    <div class="flex-1 space-y-8 overflow-y-auto px-5 pb-dock pt-2">
       <div class="space-y-2">
         <label for="ex-name" class="text-xs font-bold uppercase tracking-widest text-muted-foreground">Name</label>
         <input type="text" name="name" id="ex-name" maxlength="60" placeholder="Incline dumbbell press" value="{{ exercise.name|default:'' }}" required class="w-full rounded-2xl bg-card px-4 py-4 text-lg font-semibold outline-none ring-primary placeholder:text-muted-foreground focus:ring-2">
@@ -22,8 +34,8 @@
         <legend class="text-xs font-bold uppercase tracking-widest text-muted-foreground">Category</legend>
         <div class="flex flex-wrap gap-2">
           {% for value, label in categories %}
-          <label data-chip-select class="rounded-full px-4 py-3 text-sm font-bold transition-colors active:scale-95 cursor-pointer relative {% if exercise.category == value %}bg-primary text-primary-foreground{% else %}bg-card{% endif %}">
-            <input type="radio" name="category" value="{{ value }}" class="absolute opacity-0 pointer-events-none"{% if exercise.category == value %} checked{% endif %} required>
+          <label data-chip-select class="rounded-full px-4 py-3 text-sm font-bold transition-colors active:scale-95 cursor-pointer relative has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background {% if exercise.category == value %}bg-primary text-primary-foreground{% else %}bg-card{% endif %}">
+            <input type="radio" name="category" value="{{ value }}" class="sr-only"{% if exercise.category == value %} checked{% endif %} required>
             {{ label }}
           </label>
           {% endfor %}
@@ -34,8 +46,8 @@
         <legend class="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target muscles</legend>
         <div class="flex flex-wrap gap-2">
           {% for muscle in muscles %}
-          <label data-chip-select class="rounded-full px-4 py-3 text-sm font-bold transition-colors active:scale-95 cursor-pointer relative {% if muscle in selected_muscles %}bg-accent text-accent-foreground{% else %}bg-card{% endif %}">
-            <input type="checkbox" name="targeted_muscles" value="{{ muscle.pk }}" class="absolute opacity-0 pointer-events-none"{% if muscle in selected_muscles %} checked{% endif %}>
+          <label data-chip-select class="rounded-full px-4 py-3 text-sm font-bold transition-colors active:scale-95 cursor-pointer relative has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background {% if muscle in selected_muscles %}bg-accent text-accent-foreground{% else %}bg-card{% endif %}">
+            <input type="checkbox" name="targeted_muscles" value="{{ muscle.pk }}" class="sr-only"{% if muscle in selected_muscles %} checked{% endif %}>
             {{ muscle.name }}
           </label>
           {% endfor %}

@@ -1,8 +1,12 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.contrib import messages
+from django.db.models import Count
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .models import Exercise, Muscle, Workout, WorkoutSet
 
@@ -48,9 +52,9 @@ def _category_defaults(category):
 def index(request):
     user_workouts = Workout.objects.for_user(request.user)
     active_workout = user_workouts.active().first()
-    today_set_count = 0
+    active_set_count = 0
     if active_workout:
-        today_set_count = active_workout.workoutset_set.count()
+        active_set_count = active_workout.workoutset_set.count()
 
     last_workout = (
         user_workouts.filter(ended_at__isnull=False).order_by("-started_at").first()
@@ -68,18 +72,32 @@ def index(request):
             "finished_workout_count": user_workouts.filter(
                 ended_at__isnull=False
             ).count(),
-            "today_set_count": today_set_count,
+            "active_set_count": active_set_count,
             "last_workout": last_workout,
             "last_workout_set_count": last_workout_set_count,
         },
     )
 
 
-# GET /workouts/active
-# Return latest active workout
+def _workout_detail_context(workout, request):
+    sets = list(
+        workout.workoutset_set.select_related("exercise").order_by("-logged_at")
+    )
+    if request.GET.get("from") == "history":
+        back_url = reverse("workout_history")
+        back_label = "History"
+    else:
+        back_url = reverse("index")
+        back_label = "Home"
+    return {
+        "workout": workout,
+        "sets": sets,
+        "set_count": len(sets),
+        "is_active": workout.ended_at is None,
+        "back_url": back_url,
+        "back_label": back_label,
+    }
 
-# GET /workouts
-# Show past workouts
 
 # GET /workout/
 @login_required
@@ -88,31 +106,34 @@ def active_workout_detail(request):
     if not workout:
         return render(request, "gym_journal/workout/no_active.html")
 
-    sets = workout.workoutset_set.select_related("exercise").order_by("-logged_at")
-    return render(
-        request,
-        "gym_journal/workout/detail.html",
-        {
-            "workout": workout,
-            "sets": sets,
-            "set_count": sets.count(),
-        },
-    )
+    return redirect("workout_detail", workout_id=workout.id)
+
 
 # GET /workout/:workout_id/
 @login_required
 def workout_detail(request, workout_id):
     workout = get_object_or_404(Workout, id=workout_id, user=request.user)
-
-    sets = workout.workoutset_set.select_related("exercise").order_by("-logged_at")
     return render(
         request,
         "gym_journal/workout/detail.html",
-        {
-            "workout": workout,
-            "sets": sets,
-            "set_count": sets.count(),
-        },
+        _workout_detail_context(workout, request),
+    )
+
+
+# GET /workouts/
+@login_required
+def workout_history(request):
+    workouts = (
+        Workout.objects.for_user(request.user)
+        .filter(ended_at__isnull=False)
+        .annotate(set_count=Count("workoutset"))
+        .order_by("-started_at")
+    )
+    page_obj = Paginator(workouts, 20).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "gym_journal/workout/history.html",
+        {"page_obj": page_obj},
     )
 
 
@@ -130,6 +151,7 @@ def workout_pick_exercise(request):
         request,
         "gym_journal/workout/pick_exercise.html",
         {
+            "active_workout": active_workout,
             "exercises": exercises,
             "recent_exercise_ids": set(recent_ids),
         },
@@ -157,6 +179,7 @@ def workout_log_set(request, exercise_id):
         request,
         "gym_journal/workout/log_set.html",
         {
+            "workout": workout,
             "exercise": exercise,
             "next_set_number": next_set_number,
             "last_weight": exercise.last_weight(request.user),
@@ -168,6 +191,7 @@ def workout_log_set(request, exercise_id):
 # POST /workouts/start
 # Create a new workout
 @login_required
+@require_POST
 def start_workout(request):
     active_workout = Workout.objects.for_user(request.user).active().first()
     if active_workout:
@@ -182,6 +206,7 @@ def start_workout(request):
 # POST /workouts/finish
 # Finish lastest active workout
 @login_required
+@require_POST
 def finish_workout(request):
     active_workout = Workout.objects.for_user(request.user).active().first()
     if not active_workout:
@@ -196,12 +221,13 @@ def finish_workout(request):
         return redirect("index")
     except ValidationError as e:
         messages.error(request, _validation_message(e))
-        return redirect("active_workout_detail")
+        return redirect("workout_detail", workout_id=active_workout.id)
 
 
 # POST /workout/log/:exercise_id
 # Log a set
 @login_required
+@require_POST
 def log_set(request, exercise_id):
     active_workout = Workout.objects.for_user(request.user).active().first()
     if not active_workout:
@@ -223,7 +249,7 @@ def log_set(request, exercise_id):
         new_set.full_clean()
         new_set.save()
         messages.success(request, "Set logged.")
-        return redirect("active_workout_detail")
+        return redirect("workout_detail", workout_id=active_workout.id)
     except ValidationError as e:
         messages.error(request, _validation_message(e))
         return redirect("workout_log_set", exercise_id=exercise_id)
@@ -231,13 +257,19 @@ def log_set(request, exercise_id):
 
 # POST /workout/set/<set_id>/delete/
 @login_required
+@require_POST
 def delete_set(request, set_id):
     workout_set = get_object_or_404(
         WorkoutSet, pk=set_id, workout__user=request.user
     )
+    workout = workout_set.workout
+    if workout.ended_at is not None:
+        messages.error(request, "Cannot modify a finished workout.")
+        return redirect("workout_detail", workout_id=workout.id)
+
     workout_set.delete()
     messages.success(request, "Set removed.")
-    return redirect("active_workout_detail")
+    return redirect("workout_detail", workout_id=workout.id)
 
 
 # GET /exercises
@@ -276,6 +308,7 @@ def _exercise_form_context(exercise=None, selected_muscles=None, from_workout=Fa
 
 
 @login_required
+@require_POST
 def create_exercise(request):
     new_exercise = Exercise(
         name=request.POST.get('name'),
@@ -315,7 +348,20 @@ def exercise_detail(request, exercise_id):
     except Exercise.DoesNotExist:
         return render(request, "gym_journal/library/not_found.html")
 
-    return render(request, "gym_journal/library/detail.html", {"exercise": exercise})
+    logged_set_count = WorkoutSet.objects.filter(
+        exercise=exercise, workout__user=request.user
+    ).count()
+    global_set_count = WorkoutSet.objects.filter(exercise=exercise).count()
+    return render(
+        request,
+        "gym_journal/library/detail.html",
+        {
+            "exercise": exercise,
+            "logged_set_count": logged_set_count,
+            "global_set_count": global_set_count,
+            "can_delete_exercise": global_set_count == 0,
+        },
+    )
 
 
 # GET /exercises/:id/edit
@@ -336,6 +382,7 @@ def exercise_edit(request, exercise_id):
 
 # POST /exercises/:id/update
 @login_required
+@require_POST
 def update_exercise(request, exercise_id):
     exercise = get_object_or_404(Exercise, pk=exercise_id)
     exercise.name = request.POST.get('name')
@@ -361,8 +408,12 @@ def update_exercise(request, exercise_id):
 
 # POST /exercises/:id/delete
 @login_required
+@require_POST
 def delete_exercise(request, exercise_id):
     exercise = get_object_or_404(Exercise, pk=exercise_id)
+    if WorkoutSet.objects.filter(exercise=exercise).exists():
+        messages.error(request, "Cannot delete an exercise with logged sets.")
+        return redirect("exercise_detail", exercise_id=exercise_id)
     exercise.delete()
     messages.success(request, "Exercise deleted.")
     return redirect("exercise_list")

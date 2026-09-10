@@ -1,0 +1,45 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Workout History — Exercise Tracker{% endblock %}
+
+{% block content %}
+<main class="mx-auto w-full max-w-md px-5 pb-8 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
+  {% url 'index' as home_url %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=home_url back_label="Home" %}
+  <h1 class="font-display text-4xl uppercase">History</h1>
+  <p class="mt-2 text-sm text-muted-foreground">Past workout sessions</p>
+
+  <ul class="mt-6 space-y-3">
+    {% for workout in page_obj %}
+    <li>
+      <a href="{% url 'workout_detail' workout.pk %}?from=history" class="flex items-center justify-between rounded-2xl bg-card p-5 active:scale-[0.99] transition-transform">
+        <span>
+          <span class="block text-lg font-bold">{{ workout.started_at|date:"M j, Y" }}</span>
+          <span class="block text-sm text-muted-foreground">Started {{ workout.started_at|time:"g:i A" }}</span>
+        </span>
+        <span class="font-display text-2xl tabular-nums text-muted-foreground">
+          {{ workout.set_count }} set{{ workout.set_count|pluralize }}
+        </span>
+      </a>
+    </li>
+    {% empty %}
+    <li class="rounded-2xl bg-card px-5 py-10 text-center text-muted-foreground">
+      No finished workouts yet.
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-6 flex items-center justify-between text-sm font-bold text-muted-foreground">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="text-foreground active:opacity-70">← Newer</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="text-foreground active:opacity-70">Older →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</main>
+{% endblock %}

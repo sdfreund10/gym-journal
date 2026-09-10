@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -60,9 +60,9 @@ class SummaryView(APIView):
     def get(self, request):
         user_workouts = Workout.objects.for_user(request.user)
         active_workout = user_workouts.active().first()
-        today_set_count = 0
+        active_set_count = 0
         if active_workout:
-            today_set_count = active_workout.workoutset_set.count()
+            active_set_count = active_workout.workoutset_set.count()
 
         last_workout = (
             user_workouts.filter(ended_at__isnull=False).order_by("-started_at").first()
@@ -78,7 +78,8 @@ class SummaryView(APIView):
             "finished_workout_count": user_workouts.filter(
                 ended_at__isnull=False
             ).count(),
-            "today_set_count": today_set_count,
+            "active_set_count": active_set_count,
+            "today_set_count": active_set_count,
             "last_workout": last_workout,
             "last_workout_set_count": last_workout_set_count,
         }
@@ -167,11 +168,13 @@ class DeleteSetView(APIView):
     def delete(self, request, set_id):
         workout_set = (
             WorkoutSet.objects.filter(pk=set_id, workout__user=request.user)
-            .select_related("exercise")
+            .select_related("workout", "exercise")
             .first()
         )
         if workout_set is None:
             raise NotFound()
+        if workout_set.workout.ended_at is not None:
+            raise PermissionDenied("Cannot modify a finished workout.")
         workout_set.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -213,3 +216,8 @@ class ExerciseDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Exercise.objects.prefetch_related("targeted_muscles")
+
+    def perform_destroy(self, instance):
+        if WorkoutSet.objects.filter(exercise=instance).exists():
+            raise ValidationError("Cannot delete an exercise with logged sets.")
+        instance.delete()
