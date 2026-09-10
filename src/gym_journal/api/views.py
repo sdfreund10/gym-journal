@@ -38,10 +38,11 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
+            username = request.data.get("username", "") if hasattr(request.data, "get") else ""
             log_event(
                 "auth.login.failed",
                 level=logging.WARNING,
-                username=request.data.get("username", ""),
+                username=username,
             )
             raise ValidationError(serializer.errors)
         user = serializer.validated_data["user"]

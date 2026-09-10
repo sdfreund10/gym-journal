@@ -106,10 +106,10 @@ if SENTRY_DSN:
         release=os.environ.get("SENTRY_RELEASE"),
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for tracing.
-        traces_sample_rate=1.0,
+        traces_sample_rate=0.25,
         # Set profile_session_sample_rate to 1.0 to profile 100%
         # of profile sessions.
-        profile_session_sample_rate=1.0,
+        profile_session_sample_rate=0.25,
         # Set profile_lifecycle to "trace" to automatically
         # run the profiler on when there is an active transaction
         profile_lifecycle="trace",
