@@ -139,11 +139,22 @@
     }, 3200);
   }
 
+  function initDeleteConfirm() {
+    document.querySelectorAll("form[data-confirm]").forEach((form) => {
+      form.addEventListener("submit", (event) => {
+        if (!window.confirm(form.dataset.confirm)) {
+          event.preventDefault();
+        }
+      });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-search-list]").forEach(initSearch);
     document.querySelectorAll("[data-muscle-filter]").forEach(initMuscleFilter);
     initChipGroups();
     initToggles();
     initToasts();
+    initDeleteConfirm();
   });
 })();
