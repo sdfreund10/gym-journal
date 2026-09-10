@@ -103,6 +103,7 @@ if SENTRY_DSN:
         # Enable sending logs to Sentry
         enable_logs=True,
         environment="production",
+        release=os.environ.get("SENTRY_RELEASE"),
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for tracing.
         traces_sample_rate=1.0,

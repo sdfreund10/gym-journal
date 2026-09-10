@@ -261,10 +261,38 @@ git pull --ff-only
 uv sync
 uv run python manage.py migrate --settings=config.production
 uv run python manage.py collectstatic --noinput --settings=config.production
+# SENTRY_RELEASE is updated automatically by CI; set manually if deploying by hand
 sudo systemctl restart gym-journal
 ```
 
-Required Actions secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`. See [DEPLOY.md](DEPLOY.md).
+Required Actions secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, `HEALTH_CHECK_HOST`. See [DEPLOY.md](DEPLOY.md).
+
+After each deploy, GitHub Actions smoke-tests `GET /health/` on the public hostname.
+
+## Observability
+
+### Health check
+
+`GET /health/` returns `200 {"status":"ok"}` when Postgres is reachable, or `503 {"status":"unavailable"}` otherwise. No authentication required.
+
+### Sentry
+
+Set `SENTRY_DSN` in production `.env`. Deploys write the current git commit SHA to `SENTRY_RELEASE` so errors group by release.
+
+In Sentry project settings, configure alerts:
+
+- **New issue** → email or Slack immediately
+- **Issue frequency spike** → optional, after you have baseline traffic
+
+### Uptime monitoring
+
+Use an external uptime service (e.g. [Better Stack Uptime](https://betterstack.com/uptime)) to monitor production:
+
+- URL: `https://<your-domain>/health/`
+- Interval: every 1–5 minutes
+- Alert on 2+ consecutive failures
+
+This catches outages that are not tied to a deploy (droplet down, Gunicorn crash, database unavailable).
 
 ### Notes
 
