@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from django.utils import timezone
@@ -8,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from gym_journal.logging_utils import log_event
 from gym_journal.models import Exercise, Muscle, Workout, WorkoutSet
 
 from .serializers import (
@@ -34,9 +37,20 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            log_event(
+                "auth.login.failed",
+                level=logging.WARNING,
+                username=request.data.get("username", ""),
+            )
+            raise ValidationError(serializer.errors)
         user = serializer.validated_data["user"]
         token, _created = Token.objects.get_or_create(user=user)
+        log_event(
+            "auth.login.success",
+            user_id=user.pk,
+            username=user.username,
+        )
         return Response(
             {
                 "token": token.key,
@@ -47,6 +61,11 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     def post(self, request):
+        log_event(
+            "auth.token.revoked",
+            user_id=request.user.pk,
+            username=request.user.username,
+        )
         Token.objects.filter(user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -118,6 +137,11 @@ class StartWorkoutView(APIView):
             workout = Workout.start(request.user)
         except DjangoValidationError as exc:
             raise _django_validation_to_drf(exc) from exc
+        log_event(
+            "workout.started",
+            user_id=request.user.pk,
+            workout_id=workout.pk,
+        )
         return Response(
             WorkoutDetailSerializer(workout).data,
             status=status.HTTP_201_CREATED,
@@ -130,6 +154,11 @@ class FinishWorkoutView(APIView):
         if not workout:
             raise NotFound("No active workout to finish.")
         workout.finish()
+        log_event(
+            "workout.finished",
+            user_id=request.user.pk,
+            workout_id=workout.pk,
+        )
         return Response(WorkoutDetailSerializer(workout).data)
 
 
@@ -156,6 +185,13 @@ class LogSetView(APIView):
             new_set.save()
         except DjangoValidationError as exc:
             raise _django_validation_to_drf(exc) from exc
+        log_event(
+            "set.logged",
+            user_id=request.user.pk,
+            workout_id=workout.pk,
+            set_id=new_set.pk,
+            exercise_id=exercise.pk,
+        )
 
         return Response(
             WorkoutSetSerializer(new_set).data,
@@ -172,6 +208,13 @@ class DeleteSetView(APIView):
         )
         if workout_set is None:
             raise NotFound()
+        log_event(
+            "set.deleted",
+            user_id=request.user.pk,
+            workout_id=workout_set.workout_id,
+            set_id=workout_set.pk,
+            exercise_id=workout_set.exercise_id,
+        )
         workout_set.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -184,6 +227,14 @@ class MuscleListView(generics.ListAPIView):
 
 class ExerciseListCreateView(generics.ListCreateAPIView):
     serializer_class = ExerciseSerializer
+
+    def perform_create(self, serializer):
+        exercise = serializer.save()
+        log_event(
+            "exercise.created",
+            user_id=self.request.user.pk,
+            exercise_id=exercise.pk,
+        )
 
     def get_queryset(self):
         qs = Exercise.objects.prefetch_related("targeted_muscles").order_by("name")
@@ -210,6 +261,14 @@ class ExerciseDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ExerciseSerializer
     lookup_url_kwarg = "exercise_id"
     http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def perform_destroy(self, instance):
+        log_event(
+            "exercise.deleted",
+            user_id=self.request.user.pk,
+            exercise_id=instance.pk,
+        )
+        super().perform_destroy(instance)
 
     def get_queryset(self):
         return Exercise.objects.prefetch_related("targeted_muscles")
