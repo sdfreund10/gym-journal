@@ -19,7 +19,10 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import include, path
 from django.views.generic.base import RedirectView
 
+from gym_journal.health import health
+
 urlpatterns = [
+    path("health/", health, name="health"),
     path(
         "favicon.ico",
         RedirectView.as_view(url=staticfiles_storage.url("favicon.ico"), permanent=True),

@@ -26,6 +26,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
 from .database_url import database_from_url
 from .settings import *  # noqa: F403
+import sentry_sdk
 
 DEBUG = False
 
@@ -74,8 +75,41 @@ LOGGING = {
     "handlers": {
         "console": {"class": "logging.StreamHandler"},
     },
+    "loggers": {
+        "gym_journal": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
     "root": {
         "handlers": ["console"],
         "level": "INFO",
     },
 }
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        environment="production",
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profile_session_sample_rate to 1.0 to profile 100%
+        # of profile sessions.
+        profile_session_sample_rate=1.0,
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
+    )
