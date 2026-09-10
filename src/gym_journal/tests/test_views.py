@@ -196,7 +196,7 @@ class LogSetViewTests(AuthenticatedTestCase):
             data={"weight": "135", "reps": "8"},
         )
 
-        self.assertRedirects(response, reverse("workout_detail", kwargs={"workout_id": workout.id}))
+        self.assertRedirects(response, reverse("active_workout_detail"))
         self.assertEqual(workout.workoutset_set.count(), 1)
 
     def test_log_second_set_of_same_exercise(self):
@@ -217,7 +217,7 @@ class LogSetViewTests(AuthenticatedTestCase):
             [1, 2],
         )
 
-    def test_log_set_action_log_stays_on_form_for_next_set(self):
+    def test_log_set_action_log_redirects_to_workout_screen(self):
         make_workout(user=self.user)
         exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
 
@@ -227,11 +227,8 @@ class LogSetViewTests(AuthenticatedTestCase):
             follow=True,
         )
 
-        self.assertRedirects(
-            response,
-            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
-        )
-        self.assertContains(response, "Set 2")
+        self.assertRedirects(response, reverse("active_workout_detail"))
+        self.assertContains(response, "Set logged.")
 
     def test_log_set_redirects_home_when_no_active_workout(self):
         exercise = make_exercise()
