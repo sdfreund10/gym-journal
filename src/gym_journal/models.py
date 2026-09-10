@@ -133,12 +133,20 @@ class WorkoutSet(models.Model):
         return max_set_number + 1 if max_set_number else 1
 
 
+    def assign_next_set_number(self):
+        if self.workout_id and self.exercise_id:
+            self.set_number = self.__class__.next_set_number(self.workout, self.exercise)
+
     @transaction.atomic
     def save(self, *args, **kwargs):
-        self.set_number = self.__class__.next_set_number(self.workout, self.exercise)
+        if self._state.adding:
+            self.assign_next_set_number()
         super().save(*args, **kwargs)
 
     def clean(self):
+        # Assign before unique-constraint validation so create + full_clean works.
+        if self._state.adding:
+            self.assign_next_set_number()
         super().clean()
         if self.exercise.category != Exercise.Category.TIMED:
             if self.reps is None:

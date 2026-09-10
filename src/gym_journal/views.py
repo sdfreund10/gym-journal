@@ -136,6 +136,12 @@ def workout_pick_exercise(request):
     )
 
 
+def _from_active_workout(request):
+    if request.POST.get("from") == "workout" or request.GET.get("from") == "workout":
+        return Workout.objects.for_user(request.user).active().first() is not None
+    return False
+
+
 # GET /workout/add/<exercise_id>/
 @login_required
 def workout_log_set(request, exercise_id):
@@ -187,10 +193,10 @@ def finish_workout(request):
         active_workout.full_clean()
         active_workout.save()
         messages.success(request, "Workout finished.")
-        return redirect("workout_detail", workout_id=active_workout.id)
+        return redirect("index")
     except ValidationError as e:
         messages.error(request, _validation_message(e))
-        return redirect("workout_detail", workout_id=active_workout.id)
+        return redirect("active_workout_detail")
 
 
 # POST /workout/log/:exercise_id
@@ -212,12 +218,13 @@ def log_set(request, exercise_id):
         reps=_optional_post_value(request.POST, "reps"),
         duration_seconds=_optional_post_value(request.POST, "duration_seconds"),
     )
-    new_set.set_number = WorkoutSet.next_set_number(active_workout, exercise)
 
     try:
         new_set.full_clean()
         new_set.save()
         messages.success(request, "Set logged.")
+        if request.POST.get("action") == "log":
+            return redirect("workout_log_set", exercise_id=exercise_id)
         return redirect("workout_detail", workout_id=active_workout.id)
     except ValidationError as e:
         messages.error(request, _validation_message(e))
@@ -255,17 +262,18 @@ def exercise_new(request):
     return render(
         request,
         "gym_journal/library/form.html",
-        _exercise_form_context(),
+        _exercise_form_context(from_workout=_from_active_workout(request)),
     )
 
 
 # POST /exercises/create
-def _exercise_form_context(exercise=None, selected_muscles=None):
+def _exercise_form_context(exercise=None, selected_muscles=None, from_workout=False):
     return {
         "exercise": exercise,
         "categories": Exercise.Category.choices,
         "muscles": Muscle.objects.order_by("name"),
         "selected_muscles": selected_muscles or [],
+        "from_workout": from_workout,
     }
 
 
@@ -276,12 +284,15 @@ def create_exercise(request):
         category=request.POST.get('category'),
     )
     selected_muscle_ids = request.POST.getlist('targeted_muscles')
+    from_workout = _from_active_workout(request)
     try:
         new_exercise.full_clean()
         new_exercise.save()
         muscles = Muscle.objects.filter(id__in=selected_muscle_ids)
         new_exercise.targeted_muscles.set(muscles)
         messages.success(request, "Exercise added.")
+        if from_workout:
+            return redirect("workout_log_set", exercise_id=new_exercise.pk)
         return redirect("exercise_list")
     except ValidationError as e:
         messages.error(request, _validation_message(e))
@@ -291,6 +302,7 @@ def create_exercise(request):
             _exercise_form_context(
                 exercise=new_exercise,
                 selected_muscles=list(Muscle.objects.filter(id__in=selected_muscle_ids)),
+                from_workout=from_workout,
             ),
         )
 

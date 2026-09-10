@@ -34,7 +34,7 @@
             {% if workout_set.weight is not None %}{{ workout_set.weight }} lb × {% endif %}{{ workout_set.reps }} reps
           {% endif %}
         </span>
-        <form method="post" action="{% url 'delete_set' workout_set.pk %}">
+        <form method="post" action="{% url 'delete_set' workout_set.pk %}" data-confirm="Remove this set?">
           {% csrf_token %}
           <button type="submit" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Delete set">
             {% include "gym_journal/partials/icons.html" with icon="trash" class="h-4 w-4" %}

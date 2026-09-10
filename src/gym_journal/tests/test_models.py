@@ -221,6 +221,36 @@ class WorkoutSetNumberingTests(TestCase):
         self.assertEqual(first.set_number, 1)
         self.assertEqual(second.set_number, 2)
 
+    def test_full_clean_before_save_allows_second_set(self):
+        """Reproduce: validate with default set_number=1 before save assigns next."""
+        workout = make_workout()
+        exercise = make_exercise()
+        make_workout_set(workout, exercise, reps=5)
+
+        second = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            weight=135,
+            reps=5,
+        )
+        second.full_clean()
+        second.save()
+
+        self.assertEqual(second.set_number, 2)
+
+    def test_save_does_not_renumber_existing_set(self):
+        workout = make_workout()
+        exercise = make_exercise()
+        workout_set = make_workout_set(workout, exercise, reps=5)
+        self.assertEqual(workout_set.set_number, 1)
+
+        workout_set.reps = 6
+        workout_set.save()
+        workout_set.refresh_from_db()
+
+        self.assertEqual(workout_set.set_number, 1)
+
 
 class ExerciseRecencyOrderingTests(TestCase):
     def test_ordered_by_recency_puts_recent_exercises_first(self):
