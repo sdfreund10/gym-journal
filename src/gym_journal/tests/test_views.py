@@ -304,7 +304,7 @@ class FinishWorkoutViewTests(AuthenticatedTestCase):
 
         workout.refresh_from_db()
         self.assertIsNotNone(workout.ended_at)
-        self.assertRedirects(response, reverse("workout_detail", kwargs={"workout_id": workout.id}))
+        self.assertRedirects(response, reverse("index"))
 
     def test_finish_workout_when_none_active_shows_index_with_error(self):
         response = self.client.post(reverse("finish_workout"), follow=True)

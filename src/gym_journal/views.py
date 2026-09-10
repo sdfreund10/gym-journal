@@ -193,10 +193,10 @@ def finish_workout(request):
         active_workout.full_clean()
         active_workout.save()
         messages.success(request, "Workout finished.")
-        return redirect("workout_detail", workout_id=active_workout.id)
+        return redirect("index")
     except ValidationError as e:
         messages.error(request, _validation_message(e))
-        return redirect("workout_detail", workout_id=active_workout.id)
+        return redirect("active_workout_detail")
 
 
 # POST /workout/log/:exercise_id
