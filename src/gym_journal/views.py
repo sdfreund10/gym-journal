@@ -1,14 +1,54 @@
+import logging
+
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
+from django.contrib.auth.views import LoginView as DjangoLoginView
+from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.contrib import messages
-from django.db.models import Count
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from .logging_utils import log_event
 from .models import Exercise, Muscle, Workout, WorkoutSet
+
+
+class LoginView(DjangoLoginView):
+    template_name = "gym_journal/login.html"
+    redirect_authenticated_user = True
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        log_event(
+            "auth.login.success",
+            user_id=self.request.user.pk,
+            username=self.request.user.username,
+        )
+        return response
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        username = form.data.get("username", "")
+        log_event(
+            "auth.login.failed",
+            level=logging.WARNING,
+            username=username,
+        )
+        return response
+
+
+class LogoutView(DjangoLogoutView):
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            log_event(
+                "auth.logout",
+                user_id=request.user.pk,
+                username=request.user.username,
+            )
+        return super().post(request, *args, **kwargs)
 
 
 def _validation_message(exc):
@@ -199,6 +239,11 @@ def start_workout(request):
         return redirect("index")
 
     new_workout = Workout.start(request.user)
+    log_event(
+        "workout.started",
+        user_id=request.user.pk,
+        workout_id=new_workout.pk,
+    )
     messages.success(request, "Workout started.")
     return redirect("workout_detail", workout_id=new_workout.id)
 
@@ -217,6 +262,11 @@ def finish_workout(request):
     try:
         active_workout.full_clean()
         active_workout.save()
+        log_event(
+            "workout.finished",
+            user_id=request.user.pk,
+            workout_id=active_workout.pk,
+        )
         messages.success(request, "Workout finished.")
         return redirect("index")
     except ValidationError as e:
@@ -248,6 +298,13 @@ def log_set(request, exercise_id):
     try:
         new_set.full_clean()
         new_set.save()
+        log_event(
+            "set.logged",
+            user_id=request.user.pk,
+            workout_id=active_workout.pk,
+            set_id=new_set.pk,
+            exercise_id=exercise.pk,
+        )
         messages.success(request, "Set logged.")
         return redirect("workout_detail", workout_id=active_workout.id)
     except ValidationError as e:
@@ -267,6 +324,13 @@ def delete_set(request, set_id):
         messages.error(request, "Cannot modify a finished workout.")
         return redirect("workout_detail", workout_id=workout.id)
 
+    log_event(
+        "set.deleted",
+        user_id=request.user.pk,
+        workout_id=workout_set.workout_id,
+        set_id=workout_set.pk,
+        exercise_id=workout_set.exercise_id,
+    )
     workout_set.delete()
     messages.success(request, "Set removed.")
     return redirect("workout_detail", workout_id=workout.id)
@@ -321,6 +385,11 @@ def create_exercise(request):
         new_exercise.save()
         muscles = Muscle.objects.filter(id__in=selected_muscle_ids)
         new_exercise.targeted_muscles.set(muscles)
+        log_event(
+            "exercise.created",
+            user_id=request.user.pk,
+            exercise_id=new_exercise.pk,
+        )
         messages.success(request, "Exercise added.")
         if from_workout:
             return redirect("workout_log_set", exercise_id=new_exercise.pk)
@@ -414,6 +483,12 @@ def delete_exercise(request, exercise_id):
     if WorkoutSet.objects.filter(exercise=exercise).exists():
         messages.error(request, "Cannot delete an exercise with logged sets.")
         return redirect("exercise_detail", exercise_id=exercise_id)
+
+    log_event(
+        "exercise.deleted",
+        user_id=request.user.pk,
+        exercise_id=exercise.pk,
+    )
     exercise.delete()
     messages.success(request, "Exercise deleted.")
     return redirect("exercise_list")

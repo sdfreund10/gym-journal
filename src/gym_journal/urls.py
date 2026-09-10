@@ -1,18 +1,10 @@
-from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
 from . import views
 
 urlpatterns = [
-    path(
-        "login/",
-        LoginView.as_view(
-            template_name="gym_journal/login.html",
-            redirect_authenticated_user=True,
-        ),
-        name="login",
-    ),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path("login/", views.LoginView.as_view(), name="login"),
+    path("logout/", views.LogoutView.as_view(), name="logout"),
     path("", views.index, name="index"),
     path("workout/", views.active_workout_detail, name="active_workout_detail"),
     path("workout/add/", views.workout_pick_exercise, name="workout_pick_exercise"),

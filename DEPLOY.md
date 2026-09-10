@@ -71,6 +71,7 @@ Repo → **Settings → Secrets and variables → Actions** → New repository s
 | `DEPLOY_USER` | Linux user on the droplet (`gym-journal-deploy`) |
 | `DEPLOY_SSH_KEY` | Full private key from `gym-journal-deploy-key` (including `BEGIN`/`END` lines) |
 | `DEPLOY_PATH` | Absolute path to the app on the droplet (directory with `manage.py`) |
+| `HEALTH_CHECK_HOST` | Public hostname only (e.g. `gym.example.com`) — used for post-deploy `curl https://…/health/` |
 
 Optional: if SSH is not on port 22, add a `port:` input to the deploy step in `.github/workflows/deploy.yml`.
 
@@ -81,4 +82,5 @@ Production `.env` values stay on the droplet. The droplet → GitHub key stays o
 After [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) is on `main`:
 
 - Pushes and PRs to `main` run **pytest**.
-- On push to `main` (or manual **workflow_dispatch**), if tests pass, Actions SSHs in and runs `git pull --ff-only`, `uv sync`, migrate, collectstatic, and `systemctl restart gym-journal`.
+- On push to `main` (or manual **workflow_dispatch**), if tests pass, Actions SSHs in and runs `git pull --ff-only`, `uv sync`, migrate, collectstatic, updates `SENTRY_RELEASE` in `.env`, and `systemctl restart gym-journal`.
+- After restart, Actions curls `https://<HEALTH_CHECK_HOST>/health/` (with retries). The deploy job fails if the app does not return `{"status":"ok"}`.
