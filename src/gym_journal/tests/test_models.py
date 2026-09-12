@@ -178,7 +178,6 @@ class WorkoutSetRecentIdsTests(TestCase):
         self.assertEqual(WorkoutSet.recent_ids(alice), [squat.id])
         self.assertEqual(WorkoutSet.recent_ids(bob), [bench.id])
 
-
 class WorkoutSetValidationTests(TestCase):
     def test_non_timed_exercise_requires_reps(self):
         workout = make_workout()

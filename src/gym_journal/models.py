@@ -75,6 +75,19 @@ class Workout(models.Model):
     # query helpers
     objects = WorkoutQuerySet.as_manager()
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user", "-started_at"],
+                name="workout_user_started_idx",
+            ),
+            models.Index(
+                fields=["user"],
+                name="workout_user_active_idx",
+                condition=models.Q(ended_at__isnull=True),
+            ),
+        ]
+
     def __str__(self):
         return f"Workout {self.started_at:%Y-%m-%d %H:%M}"
 
@@ -121,6 +134,12 @@ class WorkoutSet(models.Model):
                 fields=["workout", "exercise", "set_number"],
                 name="unique_set_number_per_workout_exercise",
             )
+        ]
+        indexes = [
+            models.Index(
+                fields=["exercise", "-logged_at"],
+                name="workoutset_ex_logged_idx",
+            ),
         ]
 
     @classmethod
