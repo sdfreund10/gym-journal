@@ -88,6 +88,7 @@ def _category_defaults(category):
         "default_duration": 30,
     }
 
+
 WORKOUT_TIMEOUT_LIMIT_MINUTES = 90
 
 
@@ -107,12 +108,13 @@ def close_inactive_workouts(func):
                     "workout.autoclosed",
                     user_id=request.user.pk,
                     username=request.user.username,
-                    workout_id=workout.pk
+                    workout_id=workout.pk,
                 )
 
         return func(request, *args, **kwargs)
 
     return wrapper
+
 
 # GET /
 @login_required

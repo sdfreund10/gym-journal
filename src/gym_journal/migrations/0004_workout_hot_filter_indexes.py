@@ -5,23 +5,30 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gym_journal', '0003_workout_user'),
+        ("gym_journal", "0003_workout_user"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='workout',
-            index=models.Index(fields=['user', '-started_at'], name='workout_user_started_idx'),
+            model_name="workout",
+            index=models.Index(
+                fields=["user", "-started_at"], name="workout_user_started_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='workout',
-            index=models.Index(condition=models.Q(('ended_at__isnull', True)), fields=['user'], name='workout_user_active_idx'),
+            model_name="workout",
+            index=models.Index(
+                condition=models.Q(("ended_at__isnull", True)),
+                fields=["user"],
+                name="workout_user_active_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='workoutset',
-            index=models.Index(fields=['exercise', '-logged_at'], name='workoutset_ex_logged_idx'),
+            model_name="workoutset",
+            index=models.Index(
+                fields=["exercise", "-logged_at"], name="workoutset_ex_logged_idx"
+            ),
         ),
     ]
