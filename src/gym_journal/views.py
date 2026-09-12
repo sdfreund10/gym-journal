@@ -349,9 +349,7 @@ def log_set(request, exercise_id):
 @login_required
 @require_POST
 def delete_set(request, set_id):
-    workout_set = get_object_or_404(
-        WorkoutSet, pk=set_id, workout__user=request.user
-    )
+    workout_set = get_object_or_404(WorkoutSet, pk=set_id, workout__user=request.user)
     workout = workout_set.workout
     if workout.ended_at is not None:
         messages.error(request, "Cannot modify a finished workout.")
@@ -410,10 +408,10 @@ def _exercise_form_context(exercise=None, selected_muscles=None, from_workout=Fa
 @require_POST
 def create_exercise(request):
     new_exercise = Exercise(
-        name=request.POST.get('name'),
-        category=request.POST.get('category'),
+        name=request.POST.get("name"),
+        category=request.POST.get("category"),
     )
-    selected_muscle_ids = request.POST.getlist('targeted_muscles')
+    selected_muscle_ids = request.POST.getlist("targeted_muscles")
     from_workout = _from_active_workout(request)
     try:
         new_exercise.full_clean()
@@ -436,7 +434,9 @@ def create_exercise(request):
             "gym_journal/library/form.html",
             _exercise_form_context(
                 exercise=new_exercise,
-                selected_muscles=list(Muscle.objects.filter(id__in=selected_muscle_ids)),
+                selected_muscles=list(
+                    Muscle.objects.filter(id__in=selected_muscle_ids)
+                ),
                 from_workout=from_workout,
             ),
         )
@@ -491,9 +491,9 @@ def exercise_edit(request, exercise_id):
 @require_POST
 def update_exercise(request, exercise_id):
     exercise = get_object_or_404(Exercise, pk=exercise_id)
-    exercise.name = request.POST.get('name')
-    exercise.category = request.POST.get('category')
-    selected_muscle_ids = request.POST.getlist('targeted_muscles')
+    exercise.name = request.POST.get("name")
+    exercise.category = request.POST.get("category")
+    selected_muscle_ids = request.POST.getlist("targeted_muscles")
     try:
         exercise.full_clean()
         exercise.save()
@@ -507,7 +507,9 @@ def update_exercise(request, exercise_id):
             "gym_journal/library/form.html",
             _exercise_form_context(
                 exercise=exercise,
-                selected_muscles=list(Muscle.objects.filter(id__in=selected_muscle_ids)),
+                selected_muscles=list(
+                    Muscle.objects.filter(id__in=selected_muscle_ids)
+                ),
             ),
         )
 

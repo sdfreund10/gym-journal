@@ -24,6 +24,7 @@ gym-journal = "gym_journal:manage"
 dev = [
     "pytest>=8.0.0",
     "pytest-django>=4.9.0",
+    "ruff>=0.16.7",
 ]
 
 [tool.pytest.ini_options]

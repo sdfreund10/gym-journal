@@ -32,7 +32,9 @@ DEBUG = False
 
 
 def _csv_env(name):
-    return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
+    return [
+        item.strip() for item in os.environ.get(name, "").split(",") if item.strip()
+    ]
 
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")

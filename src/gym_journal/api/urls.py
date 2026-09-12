@@ -39,7 +39,9 @@ urlpatterns = [
         name="api_delete_set",
     ),
     path("muscles/", views.MuscleListView.as_view(), name="api_muscle_list"),
-    path("exercises/", views.ExerciseListCreateView.as_view(), name="api_exercise_list"),
+    path(
+        "exercises/", views.ExerciseListCreateView.as_view(), name="api_exercise_list"
+    ),
     path(
         "exercises/<int:exercise_id>/",
         views.ExerciseDetailView.as_view(),

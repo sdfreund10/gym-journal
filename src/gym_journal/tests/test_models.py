@@ -7,7 +7,13 @@ from django.utils import timezone
 
 from gym_journal.models import Exercise, Workout, WorkoutSet
 
-from .helpers import make_exercise, make_muscle, make_user, make_workout, make_workout_set
+from .helpers import (
+    make_exercise,
+    make_muscle,
+    make_user,
+    make_workout,
+    make_workout_set,
+)
 
 
 class MuscleModelTests(TestCase):

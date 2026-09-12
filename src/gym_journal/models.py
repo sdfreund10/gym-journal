@@ -76,7 +76,7 @@ class Workout(models.Model):
     objects = WorkoutQuerySet.as_manager()
 
     def __str__(self):
-        return f'Workout {self.started_at:%Y-%m-%d %H:%M}'
+        return f"Workout {self.started_at:%Y-%m-%d %H:%M}"
 
     @classmethod
     @transaction.atomic
@@ -109,14 +109,17 @@ class WorkoutSet(models.Model):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     logged_at = models.DateTimeField()
     weight = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
-    reps = models.IntegerField(null=True, blank=True) # null if timed exercise
-    duration_seconds = models.IntegerField(null=True, blank=True, validators=[]) # null for all but timed
+    reps = models.IntegerField(null=True, blank=True)  # null if timed exercise
+    duration_seconds = models.IntegerField(
+        null=True, blank=True, validators=[]
+    )  # null for all but timed
     set_number = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["workout", "exercise", "set_number"], name="unique_set_number_per_workout_exercise"
+                fields=["workout", "exercise", "set_number"],
+                name="unique_set_number_per_workout_exercise",
             )
         ]
 
@@ -140,13 +143,16 @@ class WorkoutSet(models.Model):
         if not workout or not exercise:
             raise ValidationError("Workout and exercise must be set.")
 
-        max_set_number = cls.objects.filter(workout=workout, exercise=exercise).aggregate(Max("set_number"))["set_number__max"]
+        max_set_number = cls.objects.filter(
+            workout=workout, exercise=exercise
+        ).aggregate(Max("set_number"))["set_number__max"]
         return max_set_number + 1 if max_set_number else 1
-
 
     def assign_next_set_number(self):
         if self.workout_id and self.exercise_id:
-            self.set_number = self.__class__.next_set_number(self.workout, self.exercise)
+            self.set_number = self.__class__.next_set_number(
+                self.workout, self.exercise
+            )
 
     @transaction.atomic
     def save(self, *args, **kwargs):

@@ -19,8 +19,13 @@ class HealthViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    @patch("gym_journal.health.connection.ensure_connection", side_effect=Exception("db down"))
-    def test_health_returns_unavailable_when_database_is_down(self, _mock_ensure_connection):
+    @patch(
+        "gym_journal.health.connection.ensure_connection",
+        side_effect=Exception("db down"),
+    )
+    def test_health_returns_unavailable_when_database_is_down(
+        self, _mock_ensure_connection
+    ):
         response = self.client.get(reverse("health"))
 
         self.assertEqual(response.status_code, 503)

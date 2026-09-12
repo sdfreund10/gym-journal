@@ -21,7 +21,9 @@ class RequestLoggingMiddlewareTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("X-Request-ID", response)
-        self.assertTrue(any(record.msg == "request completed" for record in logs.records))
+        self.assertTrue(
+            any(record.msg == "request completed" for record in logs.records)
+        )
 
     def test_health_requests_are_not_logged(self):
         with self.assertNoLogs("gym_journal", level="INFO"):
