@@ -68,6 +68,7 @@ class WorkoutQuerySetTests(TestCase):
 class WorkoutModelTests(TestCase):
     def setUp(self):
         self.user = make_user()
+        self.exercise = make_exercise()
 
     def test_finish_sets_ended_at(self):
         workout = make_workout(user=self.user)
@@ -98,6 +99,28 @@ class WorkoutModelTests(TestCase):
 
         self.assertEqual(other_workout.user, other)
         self.assertEqual(Workout.objects.active().count(), 2)
+
+    def test_last_set_logged_at_returns_latest_logged_set(self):
+        workout = Workout.start(self.user)
+        workout_set = make_workout_set(workout=workout, exercise=self.exercise)
+        self.assertEqual(workout.last_set_logged_at(), workout_set.logged_at)
+
+    def test_last_set_logged_at_handles_no_sets(self):
+        workout = Workout.start(self.user)
+        self.assertEqual(workout.last_set_logged_at(), None)
+
+    def test_last_activity_at_handles_no_sets(self):
+        workout = Workout.start(self.user)
+        self.assertEqual(workout.last_activity_at(), workout.started_at)
+
+    def test_last_activity_at_returns_latest_set(self):
+        workout = Workout.start(self.user)
+        workout_set = make_workout_set(
+            workout=workout,
+            exercise=self.exercise,
+            logged_at=timezone.now(),
+        )
+        self.assertEqual(workout.last_activity_at(), workout_set.logged_at)
 
 
 class WorkoutSetRecentIdsTests(TestCase):

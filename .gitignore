@@ -24,3 +24,7 @@ staticfiles/
 !.env.example
 .secret
 gym-journal-deploy-key*
+
+# .DS_Store
+.DS_Store
+.cursor
