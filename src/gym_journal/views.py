@@ -1,5 +1,5 @@
-import logging
 import functools
+import logging
 from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
@@ -94,7 +94,7 @@ WORKOUT_TIMEOUT_LIMIT_MINUTES = 90
 def close_inactive_workouts(func):
     @functools.wraps(func)
     def wrapper(request, *args, **kwargs):
-        if request.user is None or not request.user.is_authenticated:
+        if not request.user.is_authenticated:
             return func(request, *args, **kwargs)
 
         cutoff = timezone.now() - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES)
@@ -102,6 +102,12 @@ def close_inactive_workouts(func):
         for workout in active_workouts:
             if workout.last_activity_at() < cutoff:
                 workout.finish()
+                log_event(
+                    "workout.autoclosed",
+                    user_id=request.user.pk,
+                    username=request.user.username,
+                    workout_id=workout.pk
+                )
 
         return func(request, *args, **kwargs)
 
@@ -275,7 +281,7 @@ def start_workout(request):
 
 
 # POST /workouts/finish
-# Finish lastest active workout
+# Finish latest active workout
 @login_required
 @require_POST
 def finish_workout(request):

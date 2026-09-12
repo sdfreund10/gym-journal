@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import datetime
 from django.conf import settings
 from django.db import models, transaction
@@ -93,7 +94,7 @@ class Workout(models.Model):
         self.ended_at = timezone.now()
         self.save()
 
-    def last_set_logged_at(self) -> datetime | None:
+    def last_set_logged_at(self) -> Optional[datetime]:
         return self.workoutset_set.aggregate(Max("logged_at"))["logged_at__max"]
 
     def last_activity_at(self) -> datetime:
