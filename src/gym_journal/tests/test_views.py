@@ -644,7 +644,7 @@ class CloseInactiveWorkoutsDecoratorTests(TestCase):
         self.assertEqual(_decorated_view(self._authenticated_request()), "ok")
 
         stale.refresh_from_db()
-        self.assertIsNotNone(stale.ended_at)
+        self.assertEqual(stale.ended_at, stale.started_at)
 
     def test_keeps_recent_active_workout(self):
         recent = make_workout(user=self.user, started_at=timezone.now())

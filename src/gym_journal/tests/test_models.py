@@ -100,7 +100,7 @@ class WorkoutModelTests(TestCase):
         self.assertEqual(other_workout.user, other)
         self.assertEqual(Workout.objects.active().count(), 2)
 
-    def test_last_set_logged_at_returns_lastest_logged_set(self):
+    def test_last_set_logged_at_returns_latest_logged_set(self):
         workout = Workout.start(self.user)
         workout_set = make_workout_set(workout=workout, exercise=self.exercise)
         self.assertEqual(workout.last_set_logged_at(), workout_set.logged_at)
