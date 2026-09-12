@@ -100,8 +100,9 @@ def close_inactive_workouts(func):
         cutoff = timezone.now() - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES)
         active_workouts = Workout.objects.for_user(request.user).active()
         for workout in active_workouts:
-            if workout.last_activity_at() < cutoff:
-                workout.finish()
+            last_activity_at = workout.last_activity_at()
+            if last_activity_at < cutoff:
+                workout.finish(ended_at=last_activity_at)
                 log_event(
                     "workout.autoclosed",
                     user_id=request.user.pk,

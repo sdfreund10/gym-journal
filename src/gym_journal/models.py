@@ -90,8 +90,8 @@ class Workout(models.Model):
 
         return new_workout
 
-    def finish(self):
-        self.ended_at = timezone.now()
+    def finish(self, ended_at: Optional[datetime] = None):
+        self.ended_at = ended_at or timezone.now()
         self.save()
 
     def last_set_logged_at(self) -> Optional[datetime]:
