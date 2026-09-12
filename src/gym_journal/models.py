@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Max
@@ -91,6 +92,15 @@ class Workout(models.Model):
     def finish(self):
         self.ended_at = timezone.now()
         self.save()
+
+    def last_set_logged_at(self) -> datetime | None:
+        return self.workoutset_set.aggregate(Max("logged_at"))["logged_at__max"]
+
+    def last_activity_at(self) -> datetime:
+        latest_set = self.last_set_logged_at()
+        if latest_set is None:
+            return self.started_at
+        return max(self.started_at, latest_set)
 
 
 class WorkoutSet(models.Model):

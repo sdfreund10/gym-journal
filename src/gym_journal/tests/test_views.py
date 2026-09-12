@@ -1,10 +1,19 @@
-from django.test import Client, TestCase
+from datetime import timedelta
+
+from django.contrib.auth.models import AnonymousUser
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from gym_journal.models import Exercise, Workout
+from gym_journal.views import WORKOUT_TIMEOUT_LIMIT_MINUTES, close_inactive_workouts
 
 from .helpers import make_exercise, make_muscle, make_user, make_workout, make_workout_set
+
+
+@close_inactive_workouts
+def _decorated_view(request):
+    return "ok"
 
 
 class AuthenticatedTestCase(TestCase):
@@ -612,3 +621,111 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
 
         self.assertContains(response, "Cannot delete an exercise with logged sets.")
         self.assertTrue(Exercise.objects.filter(pk=exercise.pk).exists())
+
+
+class CloseInactiveWorkoutsDecoratorTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = make_user()
+        self.exercise = make_exercise()
+
+    def _authenticated_request(self):
+        request = self.factory.get("/")
+        request.user = self.user
+        return request
+
+    def test_closes_stale_active_workout_with_no_sets(self):
+        stale = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+
+        self.assertEqual(_decorated_view(self._authenticated_request()), "ok")
+
+        stale.refresh_from_db()
+        self.assertIsNotNone(stale.ended_at)
+
+    def test_keeps_recent_active_workout(self):
+        recent = make_workout(user=self.user, started_at=timezone.now())
+
+        _decorated_view(self._authenticated_request())
+
+        recent.refresh_from_db()
+        self.assertIsNone(recent.ended_at)
+
+    def test_closes_when_last_set_is_stale(self):
+        workout = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 10),
+        )
+        make_workout_set(
+            workout=workout,
+            exercise=self.exercise,
+            logged_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+
+        _decorated_view(self._authenticated_request())
+
+        workout.refresh_from_db()
+        self.assertIsNotNone(workout.ended_at)
+
+    def test_keeps_when_last_set_is_recent(self):
+        workout = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 10),
+        )
+        make_workout_set(
+            workout=workout,
+            exercise=self.exercise,
+            logged_at=timezone.now(),
+        )
+
+        _decorated_view(self._authenticated_request())
+
+        workout.refresh_from_db()
+        self.assertIsNone(workout.ended_at)
+
+    def test_does_not_touch_other_users_workouts(self):
+        other = make_user("other")
+        other_workout = make_workout(
+            user=other,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+
+        _decorated_view(self._authenticated_request())
+
+        other_workout.refresh_from_db()
+        self.assertIsNone(other_workout.ended_at)
+
+    def test_skips_anonymous_users(self):
+        stale = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+        request = self.factory.get("/")
+        request.user = AnonymousUser()
+
+        self.assertEqual(_decorated_view(request), "ok")
+
+        stale.refresh_from_db()
+        self.assertIsNone(stale.ended_at)
+
+    def test_leaves_already_finished_workouts_alone(self):
+        ended_at = timezone.now() - timedelta(hours=1)
+        finished = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 10),
+            ended_at=ended_at,
+        )
+
+        _decorated_view(self._authenticated_request())
+
+        finished.refresh_from_db()
+        self.assertEqual(finished.ended_at, ended_at)

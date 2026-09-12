@@ -1,4 +1,6 @@
 import logging
+import functools
+from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView as DjangoLoginView
@@ -86,9 +88,28 @@ def _category_defaults(category):
         "default_duration": 30,
     }
 
+WORKOUT_TIMEOUT_LIMIT_MINUTES = 90
+
+
+def close_inactive_workouts(func):
+    @functools.wraps(func)
+    def wrapper(request, *args, **kwargs):
+        if request.user is None or not request.user.is_authenticated:
+            return func(request, *args, **kwargs)
+
+        cutoff = timezone.now() - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES)
+        active_workouts = Workout.objects.for_user(request.user).active()
+        for workout in active_workouts:
+            if workout.last_activity_at() < cutoff:
+                workout.finish()
+
+        return func(request, *args, **kwargs)
+
+    return wrapper
 
 # GET /
 @login_required
+@close_inactive_workouts
 def index(request):
     user_workouts = Workout.objects.for_user(request.user)
     active_workout = user_workouts.active().first()
@@ -141,6 +162,7 @@ def _workout_detail_context(workout, request):
 
 # GET /workout/
 @login_required
+@close_inactive_workouts
 def active_workout_detail(request):
     workout = Workout.objects.for_user(request.user).active().first()
     if not workout:
@@ -151,6 +173,7 @@ def active_workout_detail(request):
 
 # GET /workout/:workout_id/
 @login_required
+@close_inactive_workouts
 def workout_detail(request, workout_id):
     workout = get_object_or_404(Workout, id=workout_id, user=request.user)
     return render(
@@ -162,6 +185,7 @@ def workout_detail(request, workout_id):
 
 # GET /workouts/
 @login_required
+@close_inactive_workouts
 def workout_history(request):
     workouts = (
         Workout.objects.for_user(request.user)
@@ -179,6 +203,7 @@ def workout_history(request):
 
 # GET /workout/add/
 @login_required
+@close_inactive_workouts
 def workout_pick_exercise(request):
     active_workout = Workout.objects.for_user(request.user).active().first()
     if not active_workout:
@@ -206,6 +231,7 @@ def _from_active_workout(request):
 
 # GET /workout/add/<exercise_id>/
 @login_required
+@close_inactive_workouts
 def workout_log_set(request, exercise_id):
     workout = Workout.objects.for_user(request.user).active().first()
     if not workout:
@@ -338,6 +364,7 @@ def delete_set(request, set_id):
 
 # GET /exercises
 @login_required
+@close_inactive_workouts
 def exercise_list(request):
     exercises = Exercise.objects.prefetch_related("targeted_muscles").order_by("name")
     return render(
@@ -352,6 +379,7 @@ def exercise_list(request):
 
 # GET /exercises/new
 @login_required
+@close_inactive_workouts
 def exercise_new(request):
     return render(
         request,
@@ -409,6 +437,7 @@ def create_exercise(request):
 
 # GET /exercises/:id
 @login_required
+@close_inactive_workouts
 def exercise_detail(request, exercise_id):
     try:
         exercise = Exercise.objects.prefetch_related("targeted_muscles").get(
@@ -435,6 +464,7 @@ def exercise_detail(request, exercise_id):
 
 # GET /exercises/:id/edit
 @login_required
+@close_inactive_workouts
 def exercise_edit(request, exercise_id):
     exercise = get_object_or_404(
         Exercise.objects.prefetch_related("targeted_muscles"), pk=exercise_id
