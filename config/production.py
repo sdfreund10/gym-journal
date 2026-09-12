@@ -24,15 +24,18 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
-from .database_url import database_from_url
-from .settings import *  # noqa: F403
 import sentry_sdk
+
+from .database_url import database_from_url
+from .settings import *
 
 DEBUG = False
 
 
 def _csv_env(name):
-    return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
+    return [
+        item.strip() for item in os.environ.get(name, "").split(",") if item.strip()
+    ]
 
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")

@@ -7,7 +7,7 @@ import os
 
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret-key")
 
-from .settings import *  # noqa: F403
+from .settings import *
 
 DATABASES = {
     "default": {

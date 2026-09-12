@@ -1,12 +1,14 @@
 import logging
+from typing import ClassVar
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.authentication import BaseAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,13 +34,15 @@ def _django_validation_to_drf(exc):
 
 
 class LoginView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    authentication_classes: ClassVar[list[BaseAuthentication]] = []
+    permission_classes: ClassVar[list[BasePermission]] = [AllowAny]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            username = request.data.get("username", "") if hasattr(request.data, "get") else ""
+            username = (
+                request.data.get("username", "") if hasattr(request.data, "get") else ""
+            )
             log_event(
                 "auth.login.failed",
                 level=logging.WARNING,
@@ -267,7 +271,7 @@ class ExerciseListCreateView(generics.ListCreateAPIView):
 class ExerciseDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ExerciseSerializer
     lookup_url_kwarg = "exercise_id"
-    http_method_names = ["get", "patch", "delete", "head", "options"]
+    http_method_names: ClassVar[list[str]] = ["get", "patch", "delete", "head", "options"]
 
     def perform_destroy(self, instance):
         if WorkoutSet.objects.filter(exercise=instance).exists():

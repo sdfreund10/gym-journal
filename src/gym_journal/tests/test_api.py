@@ -168,9 +168,7 @@ class WorkoutApiTests(ApiAuthMixin, APITestCase):
         other_workout = make_workout(user=self.other)
         other_set = make_workout_set(other_workout, self.exercise)
 
-        detail = self.client.get(
-            reverse("api_workout_detail", args=[other_workout.id])
-        )
+        detail = self.client.get(reverse("api_workout_detail", args=[other_workout.id]))
         self.assertEqual(detail.status_code, status.HTTP_404_NOT_FOUND)
 
         deleted = self.client.delete(reverse("api_delete_set", args=[other_set.id]))
@@ -232,9 +230,7 @@ class ExerciseApiTests(ApiAuthMixin, APITestCase):
         self.assertEqual(patched.status_code, status.HTTP_200_OK)
         self.assertEqual(patched.data["name"], "Barbell Bench")
 
-        deleted = self.client.delete(
-            reverse("api_exercise_detail", args=[exercise_id])
-        )
+        deleted = self.client.delete(reverse("api_exercise_detail", args=[exercise_id]))
         self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Exercise.objects.filter(pk=exercise_id).exists())
 
@@ -243,9 +239,7 @@ class ExerciseApiTests(ApiAuthMixin, APITestCase):
         workout = make_workout(user=self.user, ended_at=timezone.now())
         make_workout_set(workout, exercise)
 
-        deleted = self.client.delete(
-            reverse("api_exercise_detail", args=[exercise.id])
-        )
+        deleted = self.client.delete(reverse("api_exercise_detail", args=[exercise.id]))
 
         self.assertEqual(deleted.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(Exercise.objects.filter(pk=exercise.id).exists())

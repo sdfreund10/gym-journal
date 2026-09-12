@@ -8,7 +8,13 @@ from django.utils import timezone
 from gym_journal.models import Exercise, Workout
 from gym_journal.views import WORKOUT_TIMEOUT_LIMIT_MINUTES, close_inactive_workouts
 
-from .helpers import make_exercise, make_muscle, make_user, make_workout, make_workout_set
+from .helpers import (
+    make_exercise,
+    make_muscle,
+    make_user,
+    make_workout,
+    make_workout_set,
+)
 
 
 @close_inactive_workouts
@@ -258,7 +264,11 @@ class LogSetViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Set logged.")
         self.assertEqual(workout.workoutset_set.count(), 2)
         self.assertEqual(
-            list(workout.workoutset_set.order_by("set_number").values_list("set_number", flat=True)),
+            list(
+                workout.workoutset_set.order_by("set_number").values_list(
+                    "set_number", flat=True
+                )
+            ),
             [1, 2],
         )
 
@@ -324,9 +334,7 @@ class DeleteSetViewTests(AuthenticatedTestCase):
             reverse("workout_detail", kwargs={"workout_id": workout.id}),
         )
         self.assertContains(response, "Set removed.")
-        self.assertFalse(
-            workout.workoutset_set.filter(pk=workout_set.pk).exists()
-        )
+        self.assertFalse(workout.workoutset_set.filter(pk=workout_set.pk).exists())
 
     def test_delete_set_blocked_on_finished_workout(self):
         workout = make_workout(user=self.user, ended_at=timezone.now())
@@ -343,9 +351,7 @@ class DeleteSetViewTests(AuthenticatedTestCase):
             reverse("workout_detail", kwargs={"workout_id": workout.id}),
         )
         self.assertContains(response, "Cannot modify a finished workout.")
-        self.assertTrue(
-            workout.workoutset_set.filter(pk=workout_set.pk).exists()
-        )
+        self.assertTrue(workout.workoutset_set.filter(pk=workout_set.pk).exists())
 
     def test_delete_set_404_for_other_users_set(self):
         other = make_user("other")
@@ -358,9 +364,7 @@ class DeleteSetViewTests(AuthenticatedTestCase):
         )
 
         self.assertEqual(response.status_code, 404)
-        self.assertTrue(
-            workout.workoutset_set.filter(pk=workout_set.pk).exists()
-        )
+        self.assertTrue(workout.workoutset_set.filter(pk=workout_set.pk).exists())
 
 
 class WorkoutHistoryViewTests(AuthenticatedTestCase):
@@ -373,7 +377,9 @@ class WorkoutHistoryViewTests(AuthenticatedTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "History")
-        self.assertContains(response, reverse("workout_detail", kwargs={"workout_id": finished.id}))
+        self.assertContains(
+            response, reverse("workout_detail", kwargs={"workout_id": finished.id})
+        )
         self.assertContains(response, "1 set")
         self.assertNotContains(
             response,
@@ -386,7 +392,9 @@ class WorkoutHistoryViewTests(AuthenticatedTestCase):
 
         response = self.client.get(reverse("workout_history"))
 
-        self.assertContains(response, reverse("workout_detail", kwargs={"workout_id": finished.id}))
+        self.assertContains(
+            response, reverse("workout_detail", kwargs={"workout_id": finished.id})
+        )
         self.assertNotContains(
             response,
             reverse("workout_detail", kwargs={"workout_id": other_finished.id}),

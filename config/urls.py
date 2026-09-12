@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import include, path
@@ -25,7 +26,9 @@ urlpatterns = [
     path("health/", health, name="health"),
     path(
         "favicon.ico",
-        RedirectView.as_view(url=staticfiles_storage.url("favicon.ico"), permanent=True),
+        RedirectView.as_view(
+            url=staticfiles_storage.url("favicon.ico"), permanent=True
+        ),
     ),
     path("api/v1/", include("gym_journal.api.urls")),
     path("", include("gym_journal.urls")),

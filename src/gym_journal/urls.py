@@ -23,7 +23,9 @@ urlpatterns = [
     path("exercises/new/", views.exercise_new, name="exercise_new"),
     path("exercises/create/", views.create_exercise, name="exercise_create"),
     path("exercises/<int:exercise_id>/", views.exercise_detail, name="exercise_detail"),
-    path("exercises/<int:exercise_id>/edit/", views.exercise_edit, name="exercise_edit"),
+    path(
+        "exercises/<int:exercise_id>/edit/", views.exercise_edit, name="exercise_edit"
+    ),
     path(
         "exercises/<int:exercise_id>/update/",
         views.update_exercise,

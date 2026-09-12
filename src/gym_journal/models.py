@@ -1,9 +1,12 @@
-from typing import Optional
+from __future__ import annotations
+
 from datetime import datetime
+from typing import ClassVar
+
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Max
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 
@@ -75,8 +78,21 @@ class Workout(models.Model):
     # query helpers
     objects = WorkoutQuerySet.as_manager()
 
+    class Meta:
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(
+                fields=["user", "-started_at"],
+                name="workout_user_started_idx",
+            ),
+            models.Index(
+                fields=["user"],
+                name="workout_user_active_idx",
+                condition=models.Q(ended_at__isnull=True),
+            ),
+        ]
+
     def __str__(self):
-        return f'Workout {self.started_at:%Y-%m-%d %H:%M}'
+        return f"Workout {self.started_at:%Y-%m-%d %H:%M}"
 
     @classmethod
     @transaction.atomic
@@ -90,11 +106,11 @@ class Workout(models.Model):
 
         return new_workout
 
-    def finish(self, ended_at: Optional[datetime] = None):
+    def finish(self, ended_at: datetime | None = None):
         self.ended_at = ended_at or timezone.now()
         self.save()
 
-    def last_set_logged_at(self) -> Optional[datetime]:
+    def last_set_logged_at(self) -> datetime | None:
         return self.workoutset_set.aggregate(Max("logged_at"))["logged_at__max"]
 
     def last_activity_at(self) -> datetime:
@@ -109,15 +125,24 @@ class WorkoutSet(models.Model):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     logged_at = models.DateTimeField()
     weight = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
-    reps = models.IntegerField(null=True, blank=True) # null if timed exercise
-    duration_seconds = models.IntegerField(null=True, blank=True, validators=[]) # null for all but timed
+    reps = models.IntegerField(null=True, blank=True)  # null if timed exercise
+    duration_seconds = models.IntegerField(
+        null=True, blank=True, validators=[]
+    )  # null for all but timed
     set_number = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
-        constraints = [
+        constraints: ClassVar[list[models.UniqueConstraint]] = [
             models.UniqueConstraint(
-                fields=["workout", "exercise", "set_number"], name="unique_set_number_per_workout_exercise"
+                fields=["workout", "exercise", "set_number"],
+                name="unique_set_number_per_workout_exercise",
             )
+        ]
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(
+                fields=["exercise", "-logged_at"],
+                name="workoutset_ex_logged_idx",
+            ),
         ]
 
     @classmethod
@@ -140,13 +165,16 @@ class WorkoutSet(models.Model):
         if not workout or not exercise:
             raise ValidationError("Workout and exercise must be set.")
 
-        max_set_number = cls.objects.filter(workout=workout, exercise=exercise).aggregate(Max("set_number"))["set_number__max"]
+        max_set_number = cls.objects.filter(
+            workout=workout, exercise=exercise
+        ).aggregate(Max("set_number"))["set_number__max"]
         return max_set_number + 1 if max_set_number else 1
-
 
     def assign_next_set_number(self):
         if self.workout_id and self.exercise_id:
-            self.set_number = self.__class__.next_set_number(self.workout, self.exercise)
+            self.set_number = self.__class__.next_set_number(
+                self.workout, self.exercise
+            )
 
     @transaction.atomic
     def save(self, *args, **kwargs):
@@ -159,10 +187,8 @@ class WorkoutSet(models.Model):
         if self._state.adding:
             self.assign_next_set_number()
         super().clean()
-        if self.exercise.category != Exercise.Category.TIMED:
-            if self.reps is None:
-                raise ValidationError("Reps must be set of non-timed exercises.")
+        if self.exercise.category != Exercise.Category.TIMED and self.reps is None:
+            raise ValidationError("Reps must be set of non-timed exercises.")
 
-        if self.exercise.category == Exercise.Category.TIMED:
-            if self.duration_seconds is None:
-                raise ValidationError("Duration must be set for timed exercises.")
+        if self.exercise.category == Exercise.Category.TIMED and self.duration_seconds is None:
+            raise ValidationError("Duration must be set for timed exercises.")

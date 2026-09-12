@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Muscle, Workout, WorkoutSet, Exercise
+from .models import Exercise, Muscle, Workout, WorkoutSet
 
 # Create superuser from command line
 # python manage.py createsuperuser

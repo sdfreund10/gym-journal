@@ -24,12 +24,16 @@ gym-journal = "gym_journal:manage"
 dev = [
     "pytest>=8.0.0",
     "pytest-django>=4.9.0",
+    "ruff>=0.16.7",
 ]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.test_settings"
 pythonpath = ["."]
 testpaths = ["src/gym_journal/tests"]
+
+[tool.ruff]
+extend-exclude = ["**/migrations"]
 
 [build-system]
 requires = ["uv_build>=0.12.8,<0.13.0"]

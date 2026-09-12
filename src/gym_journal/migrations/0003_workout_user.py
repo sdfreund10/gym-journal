@@ -16,7 +16,6 @@ def assign_workouts_to_earliest_user(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("gym_journal", "0002_workoutset_optional_duration"),
@@ -33,7 +32,9 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
-        migrations.RunPython(assign_workouts_to_earliest_user, migrations.RunPython.noop),
+        migrations.RunPython(
+            assign_workouts_to_earliest_user, migrations.RunPython.noop
+        ),
         migrations.AlterField(
             model_name="workout",
             name="user",

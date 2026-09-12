@@ -28,7 +28,9 @@ class RequestLoggingMiddleware:
         user_id = user.pk if user is not None and user.is_authenticated else None
 
         forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        client_ip = forwarded_for.split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")
+        client_ip = forwarded_for.split(",")[0].strip() or request.META.get(
+            "REMOTE_ADDR", ""
+        )
 
         logger.info(
             "request completed",
