@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -24,7 +25,7 @@ class MuscleModelTests(TestCase):
 
     def test_muscle_name_must_be_unique(self):
         make_muscle("Legs")
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             make_muscle("Legs")
 
 
@@ -44,7 +45,7 @@ class ExerciseModelTests(TestCase):
 
     def test_exercise_name_must_be_unique(self):
         make_exercise(name="Squat")
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             make_exercise(name="Squat")
 
 
@@ -286,7 +287,7 @@ class ExerciseRecencyOrderingTests(TestCase):
         user = make_user()
         workout = make_workout(user=user)
         alpha = make_exercise(name="Alpha")
-        beta = make_exercise(name="Beta")
+        make_exercise(name="Beta")
         gamma = make_exercise(name="Gamma")
 
         now = timezone.now()

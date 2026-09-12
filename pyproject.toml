@@ -32,6 +32,9 @@ DJANGO_SETTINGS_MODULE = "config.test_settings"
 pythonpath = ["."]
 testpaths = ["src/gym_journal/tests"]
 
+[tool.ruff]
+extend-exclude = ["**/migrations"]
+
 [build-system]
 requires = ["uv_build>=0.12.8,<0.13.0"]
 build-backend = "uv_build"

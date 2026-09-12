@@ -9,6 +9,6 @@ def health(request):
         connection.ensure_connection()
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-    except Exception:
+    except Exception: # noqa: BLE001 - health check must report any DB failure as unavailable
         return JsonResponse({"status": "unavailable"}, status=503)
     return JsonResponse({"status": "ok"})
