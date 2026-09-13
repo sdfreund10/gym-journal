@@ -192,3 +192,9 @@ class WorkoutSet(models.Model):
 
         if self.exercise.category == Exercise.Category.TIMED and self.duration_seconds is None:
             raise ValidationError("Duration must be set for timed exercises.")
+        if (
+            self.exercise.category == Exercise.Category.TIMED
+            and self.duration_seconds is not None
+            and not (5 <= self.duration_seconds <= 900)
+        ):
+            raise ValidationError("Duration must be between 5 and 900 seconds.")
