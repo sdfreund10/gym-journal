@@ -176,10 +176,11 @@
       state = "running";
       stopTicker();
       applyUi();
+      stopBtn.focus();
       rafId = requestAnimationFrame(tick);
     }
 
-    function stopTimer() {
+    function stopTimer({ moveFocus = false } = {}) {
       if (state !== "running") return;
       stopTicker();
       if (startedAt !== null) {
@@ -189,6 +190,9 @@
       state = "stopped";
       display.classList.remove("is-ticking");
       applyUi();
+      if (moveFocus && document.activeElement === stopBtn) {
+        continueBtn.focus();
+      }
     }
 
     function setMode(nextMode) {
@@ -210,7 +214,7 @@
     }
 
     startBtn.addEventListener("click", startTimer);
-    stopBtn.addEventListener("click", stopTimer);
+    stopBtn.addEventListener("click", () => stopTimer({ moveFocus: true }));
     continueBtn.addEventListener("click", startTimer);
 
     modeButtons.forEach((btn) => {
