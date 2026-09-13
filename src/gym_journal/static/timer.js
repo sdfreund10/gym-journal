@@ -42,15 +42,34 @@
     let elapsedMs = 0;
     let startedAt = null;
     let rafId = null;
+    let lastShownSecond = -1;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
     function setInputSeconds(seconds) {
       input.value = String(clamp(Math.floor(seconds), 0, max));
     }
 
+    function pulseTick() {
+      if (reduceMotion) return;
+      display.classList.remove("is-ticking");
+      // Force restart so consecutive seconds still animate.
+      void display.offsetWidth;
+      display.classList.add("is-ticking");
+    }
+
     function renderDisplay() {
       const seconds = elapsedMs / 1000;
+      const whole = Math.floor(seconds);
       display.textContent = formatElapsed(seconds);
       setInputSeconds(seconds);
+      if (state === "running" && whole !== lastShownSecond) {
+        if (lastShownSecond >= 0) {
+          pulseTick();
+        }
+        lastShownSecond = whole;
+      }
     }
 
     function writeStepper(seconds) {
@@ -95,8 +114,17 @@
       if (!el) return;
       // Prefer Tailwind `hidden` over the HTML attribute: utilities like
       // `flex` otherwise win over the browser's default [hidden] rule.
+      const wasHidden = el.classList.contains("hidden") || el.hidden;
       el.classList.toggle("hidden", isHidden);
       el.hidden = isHidden;
+      if (!isHidden && wasHidden && !reduceMotion) {
+        el.classList.remove("timer-dock-in");
+        void el.offsetWidth;
+        el.classList.add("timer-dock-in");
+      }
+      if (isHidden) {
+        el.classList.remove("timer-dock-in");
+      }
     }
 
     function setPanelVisibility() {
@@ -142,6 +170,7 @@
       if (mode !== "timer") return;
       if (state === "idle") {
         elapsedMs = 0;
+        lastShownSecond = -1;
       }
       startedAt = performance.now() - elapsedMs;
       state = "running";
@@ -158,6 +187,7 @@
       }
       startedAt = null;
       state = "stopped";
+      display.classList.remove("is-ticking");
       applyUi();
     }
 
