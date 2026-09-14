@@ -46,7 +46,7 @@ class AuthGateTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Sign in")
-        self.assertContains(response, "Exercise Tracker")
+        self.assertContains(response, "Gym Journal")
 
 
 class IndexViewTests(AuthenticatedTestCase):
@@ -54,7 +54,7 @@ class IndexViewTests(AuthenticatedTestCase):
         response = self.client.get(reverse("index"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Exercise Tracker")
+        self.assertContains(response, "Gym Journal")
         self.assertContains(response, "Sign out")
 
     def test_index_shows_library_counts(self):
