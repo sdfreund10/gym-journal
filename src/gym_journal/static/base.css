@@ -31,3 +31,59 @@ input[type="search"]::-webkit-search-results-button {
   appearance: none;
   display: none;
 }
+
+/* Timed exercise timer motion */
+@keyframes timer-tick {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes timer-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes timer-stop-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+[data-duration-timer] [data-timer-display].is-ticking {
+  animation: timer-tick 180ms ease-out;
+}
+
+[data-duration-timer] .timer-dock-in {
+  animation: timer-dock-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-duration-timer] [data-timer-stop].timer-dock-in {
+  animation-name: timer-stop-in;
+  animation-duration: 280ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-duration-timer] [data-timer-display].is-ticking,
+  [data-duration-timer] .timer-dock-in {
+    animation: none;
+  }
+}
+

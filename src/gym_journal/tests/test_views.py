@@ -212,6 +212,37 @@ class WorkoutLogSetViewTests(AuthenticatedTestCase):
 
         self.assertContains(response, "Set 2")
 
+    def test_timed_exercise_shows_timer_controls(self):
+        make_workout(user=self.user)
+        exercise = make_exercise(
+            name="Plank",
+            category=Exercise.Category.TIMED,
+        )
+
+        response = self.client.get(
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-duration-timer')
+        self.assertContains(response, 'data-timer-start')
+        self.assertContains(response, 'data-timer-mode="timer"')
+        self.assertContains(response, 'data-timer-mode="manual"')
+        self.assertContains(response, "timer.js")
+
+    def test_non_timed_exercise_omits_timer_controls(self):
+        make_workout(user=self.user)
+        exercise = make_exercise(name="Squat")
+
+        response = self.client.get(
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-duration-timer')
+        self.assertNotContains(response, "timer.js")
+        self.assertContains(response, 'data-name="reps"')
+
 
 class StartWorkoutViewTests(AuthenticatedTestCase):
     def test_start_workout_creates_active_workout_and_redirects(self):
@@ -315,6 +346,41 @@ class LogSetViewTests(AuthenticatedTestCase):
             reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
         )
         self.assertContains(response, "Reps must be set of non-timed exercises.")
+        self.assertEqual(workout.workoutset_set.count(), 0)
+
+    def test_log_timed_set_with_duration(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(name="Plank", category=Exercise.Category.TIMED)
+
+        response = self.client.post(
+            reverse("log_set", kwargs={"exercise_id": exercise.pk}),
+            data={"duration_seconds": "45"},
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("workout_detail", kwargs={"workout_id": workout.id}),
+        )
+        self.assertContains(response, "Set logged.")
+        logged = workout.workoutset_set.get()
+        self.assertEqual(logged.duration_seconds, 45)
+
+    def test_log_timed_set_rejects_duration_out_of_range(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(name="Plank", category=Exercise.Category.TIMED)
+
+        response = self.client.post(
+            reverse("log_set", kwargs={"exercise_id": exercise.pk}),
+            data={"duration_seconds": "4"},
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertContains(response, "Duration must be between 5 and 900 seconds.")
         self.assertEqual(workout.workoutset_set.count(), 0)
 
 

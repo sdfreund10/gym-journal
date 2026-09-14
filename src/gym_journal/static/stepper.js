@@ -71,6 +71,10 @@
       });
     }
 
+    root.addEventListener("stepper:set", (event) => {
+      setValue(Number(event.detail));
+    });
+
     setValue(value);
   }
 

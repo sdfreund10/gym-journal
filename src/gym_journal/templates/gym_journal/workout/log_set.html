@@ -1,9 +1,10 @@
 {% extends "gym_journal/base.html" %}
+{% load static %}
 
 {% block title %}{{ exercise.name }} — Log Set{% endblock %}
 
 {% block content %}
-<main class="mx-auto w-full max-w-md px-5 pb-dock pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
+<main class="mx-auto w-full max-w-md px-5 {% if is_timed %}pb-[calc(env(safe-area-inset-bottom,0px)+10rem)]{% else %}pb-dock{% endif %} pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
   {% url 'workout_detail' workout.pk as workout_url %}
   {% include "gym_journal/partials/page_nav.html" with back_url=workout_url back_label="Workout" %}
   <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
@@ -44,21 +45,104 @@
     {% endif %}
 
     {% if is_timed %}
-    <div class="space-y-3" data-stepper data-name="duration_seconds" data-value="{{ default_duration }}" data-step="5" data-min="5" data-max="900">
-      <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Duration</span>
-      <div class="flex items-center gap-4">
-        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease duration">
-          {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+    <div
+      class="space-y-6"
+      data-duration-timer
+      data-min="5"
+      data-max="900"
+      data-mode="timer"
+      data-state="idle"
+    >
+      <div class="flex rounded-2xl bg-secondary p-1" role="group" aria-label="Duration input mode">
+        <button
+          type="button"
+          class="flex-1 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-primary-foreground transition-colors duration-200 active:scale-95"
+          data-timer-mode="timer"
+          aria-pressed="true"
+        >
+          Timer
         </button>
-        <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
-          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_duration }}</span>
-          <span class="text-base text-muted-foreground">sec</span>
-        </div>
-        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase duration">
-          {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+        <button
+          type="button"
+          class="flex-1 rounded-xl bg-secondary py-3 text-sm font-bold uppercase tracking-wide text-secondary-foreground transition-colors duration-200 active:scale-95"
+          data-timer-mode="manual"
+          aria-pressed="false"
+        >
+          Manual
         </button>
       </div>
-      <input type="hidden" name="duration_seconds" value="{{ default_duration }}" data-stepper-input>
+
+      <div class="space-y-3" data-timer-panel>
+        <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Duration</span>
+        <div class="flex min-h-40 items-center justify-center rounded-2xl bg-card py-8">
+          <span class="font-display text-8xl font-black tabular-nums leading-none" data-timer-display role="timer" aria-live="off">0:00</span>
+        </div>
+      </div>
+
+      <div class="space-y-3" data-manual-panel data-stepper data-name="duration_seconds" data-value="{{ default_duration }}" data-step="5" data-min="5" data-max="900" hidden>
+        <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Duration</span>
+        <div class="flex items-center gap-4">
+          <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease duration">
+            {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+          </button>
+          <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
+            <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_duration }}</span>
+            <span class="text-base text-muted-foreground">sec</span>
+          </div>
+          <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase duration">
+            {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+          </button>
+        </div>
+        <input type="hidden" name="duration_seconds" value="" data-timer-input data-stepper-input>
+      </div>
+
+      <div class="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md bg-gradient-to-t from-background via-background to-transparent px-5 pt-8 safe-bottom">
+        <div class="space-y-3">
+          <button
+            type="button"
+            class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform"
+            data-timer-start
+          >
+            {% include "gym_journal/partials/icons.html" with icon="play" class="h-6 w-6" %}
+            Start
+          </button>
+          <button
+            type="button"
+            class="font-display flex min-h-[7.5rem] w-full items-center justify-center gap-2 rounded-2xl bg-destructive py-12 text-3xl uppercase text-destructive-foreground active:scale-95 transition-transform hidden"
+            data-timer-stop
+            hidden
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary py-6 text-xl uppercase text-secondary-foreground active:scale-95 transition-transform hidden"
+            data-timer-continue
+            hidden
+          >
+            Continue
+          </button>
+          <button
+            type="submit"
+            class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50 hidden"
+            data-timer-submit
+            hidden
+            disabled
+          >
+            {% include "gym_journal/partials/icons.html" with icon="check" class="h-6 w-6" %}
+            Log set
+          </button>
+          <button
+            type="submit"
+            class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform hidden"
+            data-manual-submit
+            hidden
+          >
+            {% include "gym_journal/partials/icons.html" with icon="check" class="h-6 w-6" %}
+            Log set
+          </button>
+        </div>
+      </div>
     </div>
     {% else %}
     <div class="space-y-3" data-stepper data-name="reps" data-value="{{ default_reps }}" data-step="1" data-min="1" data-max="100">
@@ -76,7 +160,6 @@
       </div>
       <input type="hidden" name="reps" value="{{ default_reps }}" data-stepper-input>
     </div>
-    {% endif %}
 
     <div class="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md bg-gradient-to-t from-background via-background to-transparent px-5 pt-8 safe-bottom">
       <button type="submit" class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform">
@@ -84,6 +167,13 @@
         Log set
       </button>
     </div>
+    {% endif %}
   </form>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+{% if is_timed %}
+<script src="{% static 'timer.js' %}" defer></script>
+{% endif %}
 {% endblock %}
