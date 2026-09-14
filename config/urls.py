@@ -18,12 +18,23 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import include, path
+from django.views.generic import TemplateView
 from django.views.generic.base import RedirectView
 
 from gym_journal.health import health
 
 urlpatterns = [
     path("health/", health, name="health"),
+    path(
+        "robots.txt",
+        TemplateView.as_view(template_name="robots.txt", content_type="text/plain"),
+        name="robots_txt",
+    ),
+    path(
+        ".well-known/security.txt",
+        TemplateView.as_view(template_name="security.txt", content_type="text/plain"),
+        name="security_txt",
+    ),
     path(
         "favicon.ico",
         RedirectView.as_view(

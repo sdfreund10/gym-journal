@@ -1,10 +1,21 @@
 from django.urls import path
+from django.views.generic import TemplateView
 
 from . import views
 
 urlpatterns = [
     path("login/", views.LoginView.as_view(), name="login"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
+    path(
+        "privacy/",
+        TemplateView.as_view(template_name="gym_journal/privacy.html"),
+        name="privacy",
+    ),
+    path(
+        "terms/",
+        TemplateView.as_view(template_name="gym_journal/terms.html"),
+        name="terms",
+    ),
     path("", views.index, name="index"),
     path("workout/", views.active_workout_detail, name="active_workout_detail"),
     path("workout/add/", views.workout_pick_exercise, name="workout_pick_exercise"),

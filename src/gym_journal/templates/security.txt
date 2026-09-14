@@ -1,0 +1,4 @@
+Contact: https://github.com/sdfreund10/gym-journal/security/advisories/new
+Expires: 2027-09-13T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://github.com/sdfreund10/gym-journal

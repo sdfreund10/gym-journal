@@ -1,0 +1,20 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Page not found — Gym Journal{% endblock %}
+{% block og_title %}Page not found — Gym Journal{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
+  <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary">404</p>
+  <h1 class="font-display mt-1 text-5xl uppercase leading-[0.95]">Page<br>not found</h1>
+  <p class="mt-3 text-base text-muted-foreground">
+    That page doesn’t exist or may have moved.
+  </p>
+  <a
+    href="{% url 'index' %}"
+    class="mt-10 flex w-full items-center justify-center rounded-3xl bg-primary px-6 py-5 font-display text-2xl uppercase text-primary-foreground active:scale-[0.98] transition-transform"
+  >
+    Back home
+  </a>
+</main>
+{% endblock %}

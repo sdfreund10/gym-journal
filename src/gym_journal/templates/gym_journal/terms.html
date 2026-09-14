@@ -1,0 +1,28 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Terms — Gym Journal{% endblock %}
+{% block og_title %}Terms — Gym Journal{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
+  {% url 'login' as back_url %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=back_url back_label="Sign in" %}
+
+  <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary">Legal</p>
+  <h1 class="font-display mt-1 text-5xl uppercase leading-[0.95]">Terms</h1>
+  <div class="mt-6 space-y-4 text-base text-muted-foreground">
+    <p>
+      Gym Journal is provided as-is for personal workout tracking. Access is by invitation
+      from the site owner.
+    </p>
+    <p>
+      You are responsible for keeping your login credentials private and for the accuracy
+      of the training data you enter.
+    </p>
+    <p>
+      The service may change or become unavailable without notice. Continued use means you
+      accept these terms.
+    </p>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "gym_journal/base.html" %}
+
+{% block title %}Privacy — Gym Journal{% endblock %}
+{% block og_title %}Privacy — Gym Journal{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
+  {% url 'login' as back_url %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=back_url back_label="Sign in" %}
+
+  <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary">Legal</p>
+  <h1 class="font-display mt-1 text-5xl uppercase leading-[0.95]">Privacy</h1>
+  <div class="mt-6 space-y-4 text-base text-muted-foreground">
+    <p>
+      Gym Journal is a private workout logger. Account credentials and workout history
+      (exercises, sets, reps, weight, and duration) are stored so you can use the app.
+    </p>
+    <p>
+      Data is not sold or shared with third parties for advertising. Operational tools
+      such as error monitoring may receive technical diagnostics needed to keep the
+      service running.
+    </p>
+    <p>
+      If you want your account or workout data removed, contact the site owner.
+    </p>
+  </div>
+</main>
+{% endblock %}
