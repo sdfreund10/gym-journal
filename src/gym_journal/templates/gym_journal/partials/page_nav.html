@@ -3,5 +3,7 @@
     {% include "gym_journal/partials/icons.html" with icon="chevron-left" class="h-4 w-4 shrink-0" %}
     <span class="truncate">{{ back_label }}</span>
   </a>
-  {% include "gym_journal/partials/sign_out.html" %}
+  {% if user.is_authenticated %}
+    {% include "gym_journal/partials/sign_out.html" %}
+  {% endif %}
 </div>

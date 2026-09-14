@@ -62,5 +62,11 @@
       Sign in
     </button>
   </form>
+
+  <p class="mt-auto pb-8 pt-10 text-center text-sm text-muted-foreground">
+    <a href="{% url 'privacy' %}" class="underline-offset-4 hover:underline">Privacy</a>
+    <span class="mx-2 opacity-40">·</span>
+    <a href="{% url 'terms' %}" class="underline-offset-4 hover:underline">Terms</a>
+  </p>
 </main>
 {% endblock %}
