@@ -6,30 +6,6 @@ logger = logging.getLogger("gym_journal")
 
 SKIP_PATH_PREFIXES = ("/health/", "/static/")
 
-# Matches current templates: Tailwind CDN, Google Fonts, and inline config/script.
-CONTENT_SECURITY_POLICY = (
-    "default-src 'self'; "
-    "script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; "
-    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
-    "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data:; "
-    "connect-src 'self'; "
-    "base-uri 'self'; "
-    "form-action 'self'; "
-    "frame-ancestors 'none'"
-)
-
-
-class ContentSecurityPolicyMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        response = self.get_response(request)
-if not response.has_header("Content-Security-Policy"):
-            response["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
-        return response
-
 
 class RequestLoggingMiddleware:
     def __init__(self, get_response):

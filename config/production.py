@@ -31,12 +31,6 @@ from .settings import *
 
 DEBUG = False
 
-MIDDLEWARE = [
-    *MIDDLEWARE[:1],
-    "gym_journal.middleware.ContentSecurityPolicyMiddleware",
-    *MIDDLEWARE[1:],
-]
-
 
 def _csv_env(name):
     return [

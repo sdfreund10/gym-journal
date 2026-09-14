@@ -1,4 +1,4 @@
-from django.test import Client, SimpleTestCase, override_settings
+from django.test import Client, SimpleTestCase
 from django.urls import reverse
 
 
@@ -42,27 +42,3 @@ class PublicMetaTests(SimpleTestCase):
         self.assertContains(response, reverse("privacy"))
         self.assertContains(response, reverse("terms"))
         self.assertContains(response, "site.webmanifest")
-
-
-@override_settings(
-    MIDDLEWARE=[
-        "django.middleware.security.SecurityMiddleware",
-        "gym_journal.middleware.ContentSecurityPolicyMiddleware",
-        "django.contrib.sessions.middleware.SessionMiddleware",
-        "django.middleware.common.CommonMiddleware",
-        "django.middleware.csrf.CsrfViewMiddleware",
-        "django.contrib.auth.middleware.AuthenticationMiddleware",
-        "django.contrib.messages.middleware.MessageMiddleware",
-        "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    ]
-)
-class ContentSecurityPolicyMiddlewareTests(SimpleTestCase):
-    def test_csp_header_is_set(self):
-        response = Client().get(reverse("login"))
-
-        self.assertEqual(response.status_code, 200)
-        csp = response["Content-Security-Policy"]
-        self.assertIn("default-src 'self'", csp)
-        self.assertIn("cdn.tailwindcss.com", csp)
-        self.assertIn("fonts.googleapis.com", csp)
-        self.assertIn("frame-ancestors 'none'", csp)
