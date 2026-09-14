@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <title>Something went wrong — Gym Journal</title>
+  <meta name="description" content="Gym Journal hit an unexpected error. Head home and try again.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: oklch(0.16 0.012 250);
+      --foreground: oklch(0.97 0.005 250);
+      --primary: oklch(0.87 0.21 125);
+      --primary-foreground: oklch(0.19 0.03 130);
+      --muted: oklch(0.7 0.017 252);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: Barlow, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    main {
+      width: min(100%, 28rem);
+      margin: 0 auto;
+      padding: calc(env(safe-area-inset-top, 0px) + 1.5rem) 1.25rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .eyebrow {
+      margin: 0;
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+    h1 {
+      margin: 0.25rem 0 0;
+      font-family: Anton, system-ui, sans-serif;
+      font-size: 3rem;
+      line-height: 0.95;
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+    .lede {
+      margin: 0.75rem 0 0;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+    .home {
+      margin-top: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      border-radius: 1.5rem;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      padding: 1.25rem 1.5rem;
+      font-family: Anton, system-ui, sans-serif;
+      font-size: 1.5rem;
+      line-height: 1;
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+    .home:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">500</p>
+    <h1>Something<br>went wrong</h1>
+    <p class="lede">
+      Gym Journal hit an unexpected error. Head home and try again.
+    </p>
+    <a class="home" href="/">Back home</a>
+  </main>
+</body>
+</html>

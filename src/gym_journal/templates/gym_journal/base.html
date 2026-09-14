@@ -6,7 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d1117">
   <title>{% block title %}Gym Journal{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}A fast, one-handed workout logger. Build an exercise library and log sets, reps, weight and time in seconds.{% endblock %}">
+  <meta name="description" content="{% block meta_description %}Gym Journal — a fast, one-handed workout logger. Build an exercise library and log sets, reps, weight and time in seconds.{% endblock %}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gym Journal">
+  <meta property="og:title" content="{% block og_title %}Gym Journal{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Gym Journal — a fast, one-handed workout logger. Build an exercise library and log sets, reps, weight and time in seconds.{% endblock %}">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="{% static 'favicon.ico' %}" sizes="any">
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}">

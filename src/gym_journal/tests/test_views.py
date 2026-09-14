@@ -47,6 +47,9 @@ class AuthGateTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Sign in")
         self.assertContains(response, "Gym Journal")
+        self.assertContains(response, 'property="og:site_name" content="Gym Journal"')
+        self.assertContains(response, 'property="og:title" content="Sign in — Gym Journal"')
+        self.assertContains(response, 'name="twitter:card" content="summary"')
 
 
 class IndexViewTests(AuthenticatedTestCase):
