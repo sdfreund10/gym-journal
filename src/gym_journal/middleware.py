@@ -26,7 +26,8 @@ class ContentSecurityPolicyMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        response.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+if not response.has_header("Content-Security-Policy"):
+            response["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
         return response
 
 
