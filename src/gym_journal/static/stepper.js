@@ -22,9 +22,10 @@
     let value = null;
     if (allowEmpty && !hasInitialValue && input.value === "") {
       value = null;
-    } else {
-      value = Number(root.dataset.value || input.value || min);
-    }
+  } else {
+    const parsedValue = Number(root.dataset.value || input.value || min);
+    value = Number.isFinite(parsedValue) ? parsedValue : min;
+  }
     let timer = null;
 
     function setValue(next) {
