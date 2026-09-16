@@ -451,8 +451,8 @@ def _locked_owned_workout_set(user, set_id):
 
 def _update_set_measurements(workout_set, post):
     """Validate and save measurements; the caller owns the transaction."""
-    has_weight = workout_set.exercise.category in WEIGHTED_EXERCISE_CATEGORIES
-    is_timed = workout_set.exercise.category == Exercise.Category.TIMED
+    has_weight = workout_set.exercise.has_weight()
+    is_timed = workout_set.exercise.is_timed()
     workout_set.weight = _optional_post_value(post, "weight") if has_weight else None
     workout_set.reps = None if is_timed else _optional_post_value(post, "reps")
     workout_set.duration_seconds = (
@@ -480,7 +480,6 @@ def edit_set(request, set_id):
 
 # POST /workout/set/<set_id>/update/
 @login_required
-@close_inactive_workouts
 @require_POST
 @transaction.atomic
 def update_set(request, set_id):

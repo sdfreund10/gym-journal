@@ -56,6 +56,16 @@ class Exercise(models.Model):
             .first()
         )
         return last_set.weight if last_set else None
+    
+    def has_weight(self):
+        return self.category in {
+            Exercise.Category.DUMBBELL,
+            Exercise.Category.FREE_WEIGHT,
+            Exercise.Category.MACHINE,
+        }
+
+    def is_timed(self):
+        return self.category == Exercise.Category.TIMED
 
 
 class WorkoutQuerySet(models.QuerySet):
@@ -132,7 +142,7 @@ class WorkoutSet(models.Model):
         null=True,
         blank=True,
         validators=[
-            MinValueValidator(Decimal("0"), message="Weight cannot be negative.")
+            MinValueValidator(Decimal(0), message="Weight cannot be negative.")
         ],
     )
     reps = models.IntegerField(
