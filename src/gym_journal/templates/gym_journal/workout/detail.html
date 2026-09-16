@@ -34,29 +34,39 @@
   </p>
 
   <ul class="mt-6 space-y-3">
-    {% for workout_set in sets %}
-    <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-card p-4">
-      <div class="min-w-0">
-        <p class="truncate text-lg font-bold">{{ workout_set.exercise.name }}</p>
-        <p class="text-sm text-muted-foreground">Set {{ workout_set.set_number }}</p>
-      </div>
-      <div class="flex shrink-0 items-center gap-3">
-        <span class="font-display text-2xl tabular-nums">
-          {% if workout_set.duration_seconds is not None %}
-            {{ workout_set.duration_seconds }}s
-          {% else %}
-            {% if workout_set.weight is not None %}{{ workout_set.weight|floatformat:"-1" }} lb × {% endif %}{{ workout_set.reps }} reps
-          {% endif %}
-        </span>
-        {% if is_active %}
-        <form method="post" action="{% url 'delete_set' workout_set.pk %}" data-confirm="Remove this set?">
-          {% csrf_token %}
-          <button type="submit" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Delete set">
-            {% include "gym_journal/partials/icons.html" with icon="trash" class="h-4 w-4" %}
-          </button>
-        </form>
-        {% endif %}
-      </div>
+    {% for group in exercise_groups %}
+    <li class="rounded-2xl bg-card p-4">
+      <p class="truncate text-lg font-bold">{{ group.exercise.name }}</p>
+      <ul class="mt-1 divide-y divide-border">
+        {% for workout_set in group.sets|slice:":3" %}
+          {% include "gym_journal/workout/set_row.html" %}
+        {% endfor %}
+      </ul>
+      {% if group.remaining_count %}
+      <button
+        type="button"
+        class="mt-1 w-full rounded-xl py-2 text-sm font-bold text-primary active:scale-95 transition-transform"
+        data-toggle="set-overflow-{{ group.exercise.pk }}"
+        data-collapsed-label="+ {{ group.remaining_count }} more"
+        data-expanded-label="Show less"
+        aria-controls="set-overflow-{{ group.exercise.pk }}"
+        aria-expanded="false"
+      >
+        + {{ group.remaining_count }} more
+      </button>
+      <ul id="set-overflow-{{ group.exercise.pk }}" data-set-overflow class="divide-y divide-border" hidden>
+        {% for workout_set in group.sets|slice:"3:" %}
+          {% include "gym_journal/workout/set_row.html" %}
+        {% endfor %}
+      </ul>
+      <noscript>
+        <ul class="divide-y divide-border">
+          {% for workout_set in group.sets|slice:"3:" %}
+            {% include "gym_journal/workout/set_row.html" %}
+          {% endfor %}
+        </ul>
+      </noscript>
+      {% endif %}
     </li>
     {% empty %}
     <li class="rounded-2xl bg-card px-5 py-10 text-center text-muted-foreground">

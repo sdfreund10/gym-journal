@@ -1,7 +1,7 @@
 {% extends "gym_journal/base.html" %}
 {% load static %}
 
-{% block title %}{{ exercise.name }} — Log Set{% endblock %}
+{% block title %}{% if is_edit %}Edit set{% else %}{{ exercise.name }} — Log Set{% endif %}{% endblock %}
 
 {% block content %}
 <main class="mx-auto w-full max-w-md px-5 {% if is_timed %}pb-[calc(env(safe-area-inset-bottom,0px)+10rem)]{% else %}pb-dock{% endif %} pt-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
@@ -9,7 +9,10 @@
   {% include "gym_journal/partials/page_nav.html" with back_url=workout_url back_label="Workout" %}
   <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
     <div class="min-w-0">
+      {% if not is_edit %}
       <a href="{% url 'workout_pick_exercise' %}" class="text-sm font-bold text-muted-foreground">Change exercise</a>
+      {% endif %}
+      {% if is_edit %}<p class="text-sm font-bold text-primary">Edit set</p>{% endif %}
       <h1 class="font-display truncate text-3xl uppercase">{{ exercise.name }}</h1>
     </div>
     <a href="{{ workout_url }}" class="shrink-0 rounded-2xl bg-card p-4 active:scale-95 transition-transform" aria-label="Close">
@@ -18,33 +21,60 @@
   </div>
   <p class="mt-1 text-sm text-muted-foreground">Set {{ next_set_number }} · {{ exercise.get_category_display }}</p>
 
-  <form method="post" action="{% url 'log_set' exercise.pk %}" id="log-set-form" class="mt-8 space-y-9">
+  <form method="post" action="{{ form_action }}" id="log-set-form" class="mt-8 space-y-9">
     {% csrf_token %}
     <input type="hidden" name="exercise_id" value="{{ exercise.pk }}">
 
     {% if has_weight %}
-    <div class="space-y-3" data-stepper data-name="weight" data-value="{{ default_weight }}" data-step="5" data-min="0" data-max="800">
+    <div class="space-y-3" data-stepper data-name="weight"{% if not weight_unset %} data-value="{{ default_weight }}"{% endif %}{% if weight_unset %} data-allow-empty="true"{% endif %} data-step="5" data-min="0" data-max="800">
       <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Weight</span>
       <div class="flex items-center gap-4">
         <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease weight">
           {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
         </button>
         <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
-          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_weight }}</span>
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{% if weight_unset %}—{% else %}{{ default_weight }}{% endif %}</span>
           <span class="text-base text-muted-foreground">lb</span>
         </div>
         <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase weight">
           {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
         </button>
       </div>
-      <input type="hidden" name="weight" value="{{ default_weight }}" data-stepper-input>
+      <input type="hidden" name="weight" value="{% if not weight_unset %}{{ default_weight }}{% endif %}" data-stepper-input>
+      {% if not is_edit %}
       <button type="button" class="w-full rounded-2xl py-4 text-sm font-bold active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50 {% if last_weight is None %}bg-card text-muted-foreground{% else %}bg-secondary{% endif %}" data-last-weight="{{ last_weight|default:'' }}" {% if last_weight is None %}disabled{% endif %}>
         {% if last_weight is None %}No previous weight logged{% else %}Same as last set ({{ last_weight|floatformat:"-1" }} lb){% endif %}
       </button>
+      {% endif %}
     </div>
     {% endif %}
 
     {% if is_timed %}
+    {% if is_edit %}
+    <div class="space-y-3" data-stepper data-name="duration_seconds" data-value="{{ default_duration }}" data-step="5" data-min="5" data-max="900">
+      <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Duration</span>
+      <div class="flex items-center gap-4">
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease duration">
+          {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
+        </button>
+        <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_duration }}</span>
+          <span class="text-base text-muted-foreground">sec</span>
+        </div>
+        <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase duration">
+          {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
+        </button>
+      </div>
+      <input type="hidden" name="duration_seconds" value="{{ default_duration }}" data-stepper-input>
+    </div>
+
+    <div class="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md bg-gradient-to-t from-background via-background to-transparent px-5 pt-8 safe-bottom">
+      <button type="submit" class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform">
+        {% include "gym_journal/partials/icons.html" with icon="check" class="h-6 w-6" %}
+        Save changes
+      </button>
+    </div>
+    {% else %}
     <div
       class="space-y-6"
       data-duration-timer
@@ -144,6 +174,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
     {% else %}
     <div class="space-y-3" data-stepper data-name="reps" data-value="{{ default_reps }}" data-step="1" data-min="1" data-max="100">
       <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Reps</span>
@@ -164,7 +195,7 @@
     <div class="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md bg-gradient-to-t from-background via-background to-transparent px-5 pt-8 safe-bottom">
       <button type="submit" class="font-display flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-6 text-xl uppercase text-primary-foreground active:scale-95 transition-transform">
         {% include "gym_journal/partials/icons.html" with icon="check" class="h-6 w-6" %}
-        Log set
+        {% if is_edit %}Save changes{% else %}Log set{% endif %}
       </button>
     </div>
     {% endif %}
@@ -173,7 +204,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if is_timed %}
+{% if is_timed and not is_edit %}
 <script src="{% static 'timer.js' %}" defer></script>
 {% endif %}
 {% endblock %}

@@ -101,16 +101,27 @@
 
   function initToggles() {
     document.querySelectorAll("[data-toggle]").forEach((trigger) => {
-      trigger.addEventListener("click", () => {
-        const targetId = trigger.dataset.toggle;
-        const target = document.getElementById(targetId);
-        if (!target) return;
-        const isHidden = target.hasAttribute("hidden");
-        if (isHidden) {
-          target.removeAttribute("hidden");
-        } else {
-          target.setAttribute("hidden", "");
+      const targetId = trigger.dataset.toggle;
+      const target = document.getElementById(targetId);
+      if (!target) return;
+
+      function syncState(expanded) {
+        target.hidden = !expanded;
+        if (trigger.hasAttribute("aria-expanded")) {
+          trigger.setAttribute("aria-expanded", String(expanded));
         }
+        const label = expanded
+          ? trigger.dataset.expandedLabel
+          : trigger.dataset.collapsedLabel;
+        if (label) trigger.textContent = label;
+      }
+
+      if (trigger.hasAttribute("aria-expanded")) {
+        syncState(trigger.getAttribute("aria-expanded") === "true");
+      }
+
+      trigger.addEventListener("click", () => {
+        syncState(target.hidden);
       });
     });
   }

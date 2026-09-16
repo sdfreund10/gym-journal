@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import ClassVar
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import Max
 from django.utils import timezone
@@ -54,6 +56,16 @@ class Exercise(models.Model):
             .first()
         )
         return last_set.weight if last_set else None
+    
+    def has_weight(self):
+        return self.category in {
+            Exercise.Category.DUMBBELL,
+            Exercise.Category.FREE_WEIGHT,
+            Exercise.Category.MACHINE,
+        }
+
+    def is_timed(self):
+        return self.category == Exercise.Category.TIMED
 
 
 class WorkoutQuerySet(models.QuerySet):
@@ -124,10 +136,31 @@ class WorkoutSet(models.Model):
     workout = models.ForeignKey(Workout, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     logged_at = models.DateTimeField()
-    weight = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
-    reps = models.IntegerField(null=True, blank=True)  # null if timed exercise
+    weight = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal(0), message="Weight cannot be negative.")
+        ],
+    )
+    reps = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1, message="Reps must be at least 1.")],
+    )  # null if timed exercise
     duration_seconds = models.IntegerField(
-        null=True, blank=True, validators=[]
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(
+                5, message="Duration must be between 5 and 900 seconds."
+            ),
+            MaxValueValidator(
+                900, message="Duration must be between 5 and 900 seconds."
+            ),
+        ],
     )  # null for all but timed
     set_number = models.PositiveSmallIntegerField(default=1)
 
@@ -192,9 +225,3 @@ class WorkoutSet(models.Model):
 
         if self.exercise.category == Exercise.Category.TIMED and self.duration_seconds is None:
             raise ValidationError("Duration must be set for timed exercises.")
-        if (
-            self.exercise.category == Exercise.Category.TIMED
-            and self.duration_seconds is not None
-            and not (5 <= self.duration_seconds <= 900)
-        ):
-            raise ValidationError("Duration must be between 5 and 900 seconds.")

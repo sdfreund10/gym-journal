@@ -1,6 +1,7 @@
 import functools
 import logging
 from datetime import timedelta
+from itertools import groupby
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,14 +10,23 @@ from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from .logging_utils import log_event
 from .models import Exercise, Muscle, Workout, WorkoutSet
+
+WEIGHTED_EXERCISE_CATEGORIES = frozenset(
+    {
+        Exercise.Category.DUMBBELL,
+        Exercise.Category.FREE_WEIGHT,
+        Exercise.Category.MACHINE,
+    }
+)
 
 
 class LoginView(DjangoLoginView):
@@ -74,11 +84,7 @@ def _optional_post_value(post, key):
 
 # Maybe Category should be an object - then each category could define its own defaults.
 def _category_defaults(category):
-    has_weight = category in {
-        Exercise.Category.DUMBBELL,
-        Exercise.Category.FREE_WEIGHT,
-        Exercise.Category.MACHINE,
-    }
+    has_weight = category in WEIGHTED_EXERCISE_CATEGORIES
     is_timed = category == Exercise.Category.TIMED
     default_weight = 45 if category == Exercise.Category.FREE_WEIGHT else 25
     return {
@@ -87,6 +93,38 @@ def _category_defaults(category):
         "default_weight": default_weight,
         "default_reps": 8,
         "default_duration": 30,
+    }
+
+
+def _set_form_context(
+    *,
+    workout,
+    exercise,
+    set_number,
+    form_action,
+    is_edit=False,
+    values=None,
+):
+    defaults = _category_defaults(exercise.category)
+    values = values or {}
+    weight_unset = False
+    if "weight" in values:
+        if values["weight"] in (None, ""):
+            weight_unset = True
+        else:
+            defaults["default_weight"] = values["weight"]
+    if "reps" in values:
+        defaults["default_reps"] = values["reps"]
+    if "duration_seconds" in values:
+        defaults["default_duration"] = values["duration_seconds"]
+    return {
+        "workout": workout,
+        "exercise": exercise,
+        "next_set_number": set_number,
+        "form_action": form_action,
+        "is_edit": is_edit,
+        "weight_unset": weight_unset,
+        **defaults,
     }
 
 
@@ -160,9 +198,31 @@ def index(request):
     )
 
 
+def _group_workout_sets(sets):
+    exercise_ids = tuple(dict.fromkeys(workout_set.exercise_id for workout_set in sets))
+    exercise_order = {
+        exercise_id: position for position, exercise_id in enumerate(exercise_ids)
+    }
+    grouped_sets = groupby(
+        sorted(sets, key=lambda workout_set: exercise_order[workout_set.exercise_id]),
+        key=lambda workout_set: workout_set.exercise_id,
+    )
+    return [
+        {
+            "exercise": exercise_sets[0].exercise,
+            "sets": exercise_sets,
+            "remaining_count": max(len(exercise_sets) - 3, 0),
+        }
+        for _, workout_sets in grouped_sets
+        if (exercise_sets := list(workout_sets))
+    ]
+
+
 def _workout_detail_context(workout, request):
     sets = list(
-        workout.workoutset_set.select_related("exercise").order_by("-logged_at")
+        workout.workoutset_set.select_related("exercise").order_by(
+            "-logged_at", "-pk"
+        )
     )
     if request.GET.get("from") == "history":
         back_url = reverse("workout_history")
@@ -172,7 +232,7 @@ def _workout_detail_context(workout, request):
         back_label = "Home"
     return {
         "workout": workout,
-        "sets": sets,
+        "exercise_groups": _group_workout_sets(sets),
         "set_count": len(sets),
         "is_active": workout.ended_at is None,
         "back_url": back_url,
@@ -260,16 +320,17 @@ def workout_log_set(request, exercise_id):
     exercise = get_object_or_404(Exercise, pk=exercise_id)
     next_set_number = WorkoutSet.next_set_number(workout, exercise)
 
-    defaults = _category_defaults(exercise.category)
     return render(
         request,
         "gym_journal/workout/log_set.html",
         {
-            "workout": workout,
-            "exercise": exercise,
-            "next_set_number": next_set_number,
+            **_set_form_context(
+                workout=workout,
+                exercise=exercise,
+                set_number=next_set_number,
+                form_action=reverse("log_set", kwargs={"exercise_id": exercise.pk}),
+            ),
             "last_weight": exercise.last_weight(request.user),
-            **defaults,
         },
     )
 
@@ -358,6 +419,110 @@ def log_set(request, exercise_id):
         return redirect("workout_log_set", exercise_id=exercise_id)
 
 
+def _finished_workout_redirect(request, workout):
+    messages.error(request, "Cannot modify a finished workout.")
+    return redirect("workout_detail", workout_id=workout.id)
+
+
+def _render_set_edit_form(request, workout_set, values=None):
+    if values is None:
+        values = {
+            "weight": workout_set.weight,
+            "reps": workout_set.reps,
+            "duration_seconds": workout_set.duration_seconds,
+        }
+    return render(
+        request,
+        "gym_journal/workout/log_set.html",
+        _set_form_context(
+            workout=workout_set.workout,
+            exercise=workout_set.exercise,
+            set_number=workout_set.set_number,
+            form_action=reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            is_edit=True,
+            values=values,
+        ),
+    )
+
+
+def _locked_owned_workout_set(user, set_id):
+    """Fetch and lock an owned set and workout inside an atomic transaction."""
+    workout_set = get_object_or_404(
+        WorkoutSet.objects.select_for_update().select_related("exercise"),
+        pk=set_id,
+        workout__user=user,
+    )
+    workout_set.workout = get_object_or_404(
+        Workout.objects.select_for_update(),
+        pk=workout_set.workout_id,
+        user=user,
+    )
+    return workout_set
+
+
+def _update_set_measurements(workout_set, post):
+    """Validate and save measurements; the caller owns the transaction."""
+    has_weight = workout_set.exercise.has_weight()
+    is_timed = workout_set.exercise.is_timed()
+    workout_set.weight = _optional_post_value(post, "weight") if has_weight else None
+    workout_set.reps = None if is_timed else _optional_post_value(post, "reps")
+    workout_set.duration_seconds = (
+        _optional_post_value(post, "duration_seconds") if is_timed else None
+    )
+    workout_set.full_clean()
+    workout_set.save(update_fields=["weight", "reps", "duration_seconds"])
+
+
+# GET /workout/set/<set_id>/edit/
+@login_required
+@close_inactive_workouts
+@require_safe
+def edit_set(request, set_id):
+    workout_set = get_object_or_404(
+        WorkoutSet.objects.select_related("workout", "exercise"),
+        pk=set_id,
+        workout__user=request.user,
+    )
+    if workout_set.workout.ended_at is not None:
+        return _finished_workout_redirect(request, workout_set.workout)
+
+    return _render_set_edit_form(request, workout_set)
+
+
+# POST /workout/set/<set_id>/update/
+@login_required
+@require_POST
+@transaction.atomic
+def update_set(request, set_id):
+    workout_set = _locked_owned_workout_set(request.user, set_id)
+    if workout_set.workout.ended_at is not None:
+        return _finished_workout_redirect(request, workout_set.workout)
+
+    try:
+        _update_set_measurements(workout_set, request.POST)
+    except ValidationError as e:
+        messages.error(request, _validation_message(e))
+        return _render_set_edit_form(
+            request,
+            workout_set,
+            values={
+                "weight": request.POST.get("weight"),
+                "reps": request.POST.get("reps"),
+                "duration_seconds": request.POST.get("duration_seconds"),
+            },
+        )
+
+    log_event(
+        "set.updated",
+        user_id=request.user.pk,
+        workout_id=workout_set.workout_id,
+        set_id=workout_set.pk,
+        exercise_id=workout_set.exercise_id,
+    )
+    messages.success(request, "Set updated.")
+    return redirect("workout_detail", workout_id=workout_set.workout_id)
+
+
 # POST /workout/set/<set_id>/delete/
 @login_required
 @require_POST
@@ -365,8 +530,7 @@ def delete_set(request, set_id):
     workout_set = get_object_or_404(WorkoutSet, pk=set_id, workout__user=request.user)
     workout = workout_set.workout
     if workout.ended_at is not None:
-        messages.error(request, "Cannot modify a finished workout.")
-        return redirect("workout_detail", workout_id=workout.id)
+        return _finished_workout_redirect(request, workout)
 
     log_event(
         "set.deleted",

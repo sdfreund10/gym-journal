@@ -1,0 +1,23 @@
+<li class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-2">
+  <span class="text-sm text-muted-foreground">Set {{ workout_set.set_number }}</span>
+  <span class="text-right font-display text-xl tabular-nums">
+    {% if workout_set.duration_seconds is not None %}
+      {{ workout_set.duration_seconds }}s
+    {% else %}
+      {% if workout_set.weight is not None %}{{ workout_set.weight|floatformat:"-1" }} lb × {% endif %}{{ workout_set.reps }} reps
+    {% endif %}
+  </span>
+  {% if is_active %}
+  <span class="flex items-center">
+    <a href="{% url 'edit_set' workout_set.pk %}" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Edit set {{ workout_set.set_number }}">
+      {% include "gym_journal/partials/icons.html" with icon="pencil" class="h-4 w-4" %}
+    </a>
+    <form method="post" action="{% url 'delete_set' workout_set.pk %}" data-confirm="Remove this set?">
+      {% csrf_token %}
+      <button type="submit" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Delete set {{ workout_set.set_number }}">
+        {% include "gym_journal/partials/icons.html" with icon="trash" class="h-4 w-4" %}
+      </button>
+    </form>
+  </span>
+  {% endif %}
+</li>
