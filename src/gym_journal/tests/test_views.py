@@ -6,7 +6,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from gym_journal.models import Exercise, Workout
-from gym_journal.views import WORKOUT_TIMEOUT_LIMIT_MINUTES, close_inactive_workouts
+from gym_journal.views import (
+    WORKOUT_TIMEOUT_LIMIT_MINUTES,
+    _workout_detail_context,
+    close_inactive_workouts,
+)
 
 from .helpers import (
     make_exercise,
@@ -154,6 +158,122 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
 
         self.assertContains(response, reverse("workout_history"))
         self.assertContains(response, "History")
+
+    def test_groups_interleaved_sets_by_exercise_in_latest_activity_order(self):
+        workout = make_workout(user=self.user)
+        squat = make_exercise(name="Squat")
+        row = make_exercise(name="Row")
+        now = timezone.now()
+        squat_first = make_workout_set(
+            workout, squat, logged_at=now - timedelta(minutes=3)
+        )
+        make_workout_set(workout, row, logged_at=now - timedelta(minutes=2))
+        squat_latest = make_workout_set(
+            workout, squat, logged_at=now - timedelta(minutes=1)
+        )
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        groups = response.context["exercise_groups"]
+        self.assertEqual([group["exercise"] for group in groups], [squat, row])
+        self.assertEqual(groups[0]["sets"], [squat_latest, squat_first])
+        self.assertContains(response, "Squat", count=1)
+        self.assertContains(response, "Row", count=1)
+
+    def test_renders_weighted_bodyweight_and_timed_set_summaries(self):
+        workout = make_workout(user=self.user)
+        weighted = make_exercise(
+            name="Bench Press", category=Exercise.Category.FREE_WEIGHT
+        )
+        bodyweight = make_exercise(
+            name="Push Up", category=Exercise.Category.BODYWEIGHT
+        )
+        timed = make_exercise(name="Plank", category=Exercise.Category.TIMED)
+        make_workout_set(workout, weighted, weight=135, reps=8)
+        make_workout_set(workout, bodyweight, weight=None, reps=12)
+        make_workout_set(
+            workout, timed, weight=None, reps=None, duration_seconds=45
+        )
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        self.assertContains(response, "135 lb × 8 reps")
+        self.assertContains(response, "12 reps")
+        self.assertContains(response, "45s")
+
+    def test_hides_sets_after_first_three_behind_expand_control(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise()
+        workout_sets = [
+            make_workout_set(workout, exercise, reps=index)
+            for index in range(1, 5)
+        ]
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        overflow_id = f"set-overflow-{exercise.pk}"
+        self.assertContains(response, f'aria-controls="{overflow_id}"')
+        self.assertContains(response, 'aria-expanded="false"')
+        self.assertContains(response, "+ 1 more")
+        self.assertContains(response, f'id="{overflow_id}"')
+        self.assertContains(
+            response,
+            reverse("delete_set", kwargs={"set_id": workout_sets[0].pk}),
+        )
+
+    def test_three_sets_do_not_render_expand_control(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise()
+        for index in range(1, 4):
+            make_workout_set(workout, exercise, reps=index)
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        self.assertNotContains(response, f"set-overflow-{exercise.pk}")
+
+    def test_detail_context_loads_all_exercises_in_one_query(self):
+        workout = make_workout(user=self.user)
+        first = make_exercise(name="Squat")
+        second = make_exercise(name="Row")
+        make_workout_set(workout, first)
+        make_workout_set(workout, second)
+        request = RequestFactory().get("/")
+
+        with self.assertNumQueries(1):
+            context = _workout_detail_context(workout, request)
+
+        self.assertEqual(len(context["exercise_groups"]), 2)
+
+    def test_active_set_rows_link_to_edit_while_finished_rows_do_not(self):
+        active = make_workout(user=self.user)
+        finished = make_workout(user=self.user, ended_at=timezone.now())
+        exercise = make_exercise()
+        active_set = make_workout_set(active, exercise)
+        finished_set = make_workout_set(finished, exercise)
+
+        active_response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": active.id})
+        )
+        finished_response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": finished.id})
+        )
+
+        self.assertContains(
+            active_response,
+            reverse("edit_set", kwargs={"set_id": active_set.pk}),
+        )
+        self.assertNotContains(
+            finished_response,
+            reverse("edit_set", kwargs={"set_id": finished_set.pk}),
+        )
 
 
 class WorkoutPickExerciseViewTests(AuthenticatedTestCase):
@@ -434,6 +554,175 @@ class DeleteSetViewTests(AuthenticatedTestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertTrue(workout.workoutset_set.filter(pk=workout_set.pk).exists())
+
+
+class EditSetViewTests(AuthenticatedTestCase):
+    def test_edit_form_prefills_existing_measurements(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=137.5, reps=7)
+
+        response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit set")
+        self.assertContains(
+            response,
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+        )
+        self.assertContains(response, 'data-value="137.5"')
+        self.assertContains(response, 'data-value="7"')
+
+    def test_timed_edit_form_shows_manual_stepper_instead_of_timer(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.TIMED)
+        workout_set = make_workout_set(
+            workout,
+            exercise,
+            weight=None,
+            reps=None,
+            duration_seconds=45,
+        )
+
+        response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-name="duration_seconds"')
+        self.assertContains(response, 'data-value="45"')
+        self.assertNotContains(response, "data-duration-timer")
+        self.assertNotContains(response, "timer.js")
+
+    def test_update_changes_measurements_without_changing_set_identity(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=135, reps=8)
+        original_logged_at = workout_set.logged_at
+
+        response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "140", "reps": "6"},
+            follow=True,
+        )
+
+        workout_set.refresh_from_db()
+        self.assertContains(response, "Set updated.")
+        self.assertEqual(workout_set.weight, 140)
+        self.assertEqual(workout_set.reps, 6)
+        self.assertEqual(workout_set.workout, workout)
+        self.assertEqual(workout_set.exercise, exercise)
+        self.assertEqual(workout_set.set_number, 1)
+        self.assertEqual(workout_set.logged_at, original_logged_at)
+
+    def test_update_timed_set_changes_duration(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.TIMED)
+        workout_set = make_workout_set(
+            workout,
+            exercise,
+            weight=None,
+            reps=None,
+            duration_seconds=30,
+        )
+
+        self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"duration_seconds": "45"},
+        )
+
+        workout_set.refresh_from_db()
+        self.assertEqual(workout_set.duration_seconds, 45)
+
+    def test_invalid_update_preserves_saved_and_submitted_values(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.TIMED)
+        workout_set = make_workout_set(
+            workout,
+            exercise,
+            weight=None,
+            reps=None,
+            duration_seconds=30,
+        )
+
+        response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"duration_seconds": "4"},
+        )
+
+        workout_set.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Duration must be between 5 and 900 seconds.")
+        self.assertContains(response, 'data-value="4"')
+        self.assertEqual(workout_set.duration_seconds, 30)
+
+    def test_update_rejects_negative_weight(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=135, reps=8)
+
+        response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "-1", "reps": "8"},
+        )
+
+        workout_set.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Weight cannot be negative.")
+        self.assertEqual(workout_set.weight, 135)
+
+    def test_update_rejects_non_positive_reps(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.BODYWEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=None, reps=8)
+
+        response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"reps": "0"},
+        )
+
+        workout_set.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reps must be at least 1.")
+        self.assertEqual(workout_set.reps, 8)
+
+    def test_edit_and_update_are_blocked_after_workout_finishes(self):
+        workout = make_workout(user=self.user, ended_at=timezone.now())
+        exercise = make_exercise()
+        workout_set = make_workout_set(workout, exercise, reps=8)
+
+        edit_response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk}), follow=True
+        )
+        update_response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "140", "reps": "6"},
+            follow=True,
+        )
+
+        workout_set.refresh_from_db()
+        self.assertContains(edit_response, "Cannot modify a finished workout.")
+        self.assertContains(update_response, "Cannot modify a finished workout.")
+        self.assertEqual(workout_set.reps, 8)
+
+    def test_edit_and_update_return_404_for_other_users_set(self):
+        other = make_user("other")
+        workout = make_workout(user=other)
+        exercise = make_exercise()
+        workout_set = make_workout_set(workout, exercise)
+
+        edit_response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk})
+        )
+        update_response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "140", "reps": "6"},
+        )
+
+        self.assertEqual(edit_response.status_code, 404)
+        self.assertEqual(update_response.status_code, 404)
 
 
 class WorkoutHistoryViewTests(AuthenticatedTestCase):

@@ -187,6 +187,10 @@ class WorkoutSet(models.Model):
         if self._state.adding:
             self.assign_next_set_number()
         super().clean()
+        if self.weight is not None and self.weight < 0:
+            raise ValidationError({"weight": "Weight cannot be negative."})
+        if self.reps is not None and self.reps < 1:
+            raise ValidationError({"reps": "Reps must be at least 1."})
         if self.exercise.category != Exercise.Category.TIMED and self.reps is None:
             raise ValidationError("Reps must be set of non-timed exercises.")
 
