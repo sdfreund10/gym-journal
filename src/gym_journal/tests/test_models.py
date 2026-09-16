@@ -226,6 +226,34 @@ class WorkoutSetValidationTests(TestCase):
 
         workout_set.full_clean()
 
+    def test_invalid_post_strings_do_not_raise_type_error_in_clean(self):
+        workout = make_workout()
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            weight="abc",
+            reps="xyz",
+        )
+
+        with self.assertRaises(ValidationError):
+            workout_set.full_clean()
+
+    def test_negative_weight_string_rejected_by_field_validators(self):
+        workout = make_workout()
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = WorkoutSet(
+            workout=workout,
+            exercise=exercise,
+            logged_at=timezone.now(),
+            weight="-10",
+            reps="8",
+        )
+
+        with self.assertRaises(ValidationError):
+            workout_set.full_clean()
+
 
 class WorkoutSetNumberingTests(TestCase):
     def test_next_set_number_starts_at_one(self):

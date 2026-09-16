@@ -673,6 +673,80 @@ class EditSetViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Weight cannot be negative.")
         self.assertEqual(workout_set.weight, 135)
 
+    def test_edit_form_preserves_null_weight_without_defaulting_to_zero(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=None, reps=8)
+
+        response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-allow-empty="true"')
+        self.assertNotContains(response, 'data-value="0"')
+
+    def test_update_without_changing_null_weight_keeps_null(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=None, reps=8)
+
+        self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"reps": "8"},
+            follow=True,
+        )
+
+        workout_set.refresh_from_db()
+        self.assertIsNone(workout_set.weight)
+
+    def test_update_rejects_non_numeric_weight_without_server_error(self):
+        workout = make_workout(user=self.user)
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(workout, exercise, weight=135, reps=8)
+
+        response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "abc", "reps": "8"},
+        )
+
+        workout_set.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(workout_set.weight, 135)
+
+    def test_edit_and_update_blocked_when_workout_timed_out(self):
+        workout = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+        exercise = make_exercise(category=Exercise.Category.FREE_WEIGHT)
+        workout_set = make_workout_set(
+            workout,
+            exercise,
+            weight=135,
+            reps=8,
+            logged_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+
+        edit_response = self.client.get(
+            reverse("edit_set", kwargs={"set_id": workout_set.pk}),
+            follow=True,
+        )
+        update_response = self.client.post(
+            reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            data={"weight": "140", "reps": "6"},
+            follow=True,
+        )
+
+        workout_set.refresh_from_db()
+        workout.refresh_from_db()
+        self.assertIsNotNone(workout.ended_at)
+        self.assertContains(edit_response, "Cannot modify a finished workout.")
+        self.assertContains(update_response, "Cannot modify a finished workout.")
+        self.assertEqual(workout_set.weight, 135)
+
     def test_update_rejects_non_positive_reps(self):
         workout = make_workout(user=self.user)
         exercise = make_exercise(category=Exercise.Category.BODYWEIGHT)

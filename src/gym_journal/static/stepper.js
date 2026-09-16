@@ -16,10 +16,25 @@
     const step = Number(root.dataset.step || 1);
     const min = Number(root.dataset.min || 0);
     const max = Number(root.dataset.max || 999);
-    let value = Number(root.dataset.value || input.value || min);
+    const allowEmpty = root.dataset.allowEmpty === "true";
+    const hasInitialValue =
+      root.dataset.value !== undefined && root.dataset.value !== "";
+    let value = null;
+    if (allowEmpty && !hasInitialValue && input.value === "") {
+      value = null;
+    } else {
+      value = Number(root.dataset.value || input.value || min);
+    }
     let timer = null;
 
     function setValue(next) {
+      if (allowEmpty && next === null) {
+        value = null;
+        display.textContent = "—";
+        input.value = "";
+        delete root.dataset.value;
+        return;
+      }
       value = clamp(next, min, max);
       display.textContent = String(value);
       input.value = String(value);
@@ -34,6 +49,10 @@
     }
 
     function bump(dir) {
+      if (value === null) {
+        setValue(min + dir * step);
+        return;
+      }
       setValue(value + dir * step);
     }
 
@@ -75,7 +94,12 @@
       setValue(Number(event.detail));
     });
 
-    setValue(value);
+    if (value === null) {
+      display.textContent = "—";
+      input.value = "";
+    } else {
+      setValue(value);
+    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {

@@ -26,21 +26,21 @@
     <input type="hidden" name="exercise_id" value="{{ exercise.pk }}">
 
     {% if has_weight %}
-    <div class="space-y-3" data-stepper data-name="weight" data-value="{{ default_weight }}" data-step="5" data-min="0" data-max="800">
+    <div class="space-y-3" data-stepper data-name="weight"{% if not weight_unset %} data-value="{{ default_weight }}"{% endif %}{% if weight_unset %} data-allow-empty="true"{% endif %} data-step="5" data-min="0" data-max="800">
       <span class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Weight</span>
       <div class="flex items-center gap-4">
         <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-dec aria-label="Decrease weight">
           {% include "gym_journal/partials/icons.html" with icon="minus" class="h-7 w-7" %}
         </button>
         <div class="flex min-w-0 flex-1 items-baseline justify-center gap-1 rounded-2xl bg-card py-3">
-          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{{ default_weight }}</span>
+          <span class="font-display text-5xl font-black tabular-nums" data-stepper-display>{% if weight_unset %}—{% else %}{{ default_weight }}{% endif %}</span>
           <span class="text-base text-muted-foreground">lb</span>
         </div>
         <button type="button" class="flex h-16 w-16 shrink-0 touch-none select-none items-center justify-center rounded-2xl bg-secondary active:scale-95 transition-transform" data-stepper-inc aria-label="Increase weight">
           {% include "gym_journal/partials/icons.html" with icon="plus" class="h-7 w-7" %}
         </button>
       </div>
-      <input type="hidden" name="weight" value="{{ default_weight }}" data-stepper-input>
+      <input type="hidden" name="weight" value="{% if not weight_unset %}{{ default_weight }}{% endif %}" data-stepper-input>
       {% if not is_edit %}
       <button type="button" class="w-full rounded-2xl py-4 text-sm font-bold active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50 {% if last_weight is None %}bg-card text-muted-foreground{% else %}bg-secondary{% endif %}" data-last-weight="{{ last_weight|default:'' }}" {% if last_weight is None %}disabled{% endif %}>
         {% if last_weight is None %}No previous weight logged{% else %}Same as last set ({{ last_weight|floatformat:"-1" }} lb){% endif %}

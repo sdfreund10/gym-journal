@@ -106,8 +106,12 @@ def _set_form_context(
 ):
     defaults = _category_defaults(exercise.category)
     values = values or {}
+    weight_unset = False
     if "weight" in values:
-        defaults["default_weight"] = values["weight"]
+        if values["weight"] in (None, ""):
+            weight_unset = True
+        else:
+            defaults["default_weight"] = values["weight"]
     if "reps" in values:
         defaults["default_reps"] = values["reps"]
     if "duration_seconds" in values:
@@ -118,6 +122,7 @@ def _set_form_context(
         "next_set_number": set_number,
         "form_action": form_action,
         "is_edit": is_edit,
+        "weight_unset": weight_unset,
         **defaults,
     }
 
@@ -459,6 +464,7 @@ def _update_set_measurements(workout_set, post):
 
 # GET /workout/set/<set_id>/edit/
 @login_required
+@close_inactive_workouts
 @require_safe
 def edit_set(request, set_id):
     workout_set = get_object_or_404(
@@ -474,6 +480,7 @@ def edit_set(request, set_id):
 
 # POST /workout/set/<set_id>/update/
 @login_required
+@close_inactive_workouts
 @require_POST
 @transaction.atomic
 def update_set(request, set_id):
