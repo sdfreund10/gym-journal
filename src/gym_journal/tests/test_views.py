@@ -9,9 +9,9 @@ from django.utils import timezone
 
 from gym_journal.models import Exercise, Workout
 from gym_journal.views import (
-    _workout_detail_context,
     INACTIVE_WORKOUT_CHECK_CACHE_SECONDS,
     WORKOUT_TIMEOUT_LIMIT_MINUTES,
+    _workout_detail_context,
     close_inactive_workouts,
 )
 
@@ -28,9 +28,9 @@ from .helpers import (
 def _decorated_view(request):
     return "ok"
 
-
 class AuthenticatedTestCase(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.user = make_user()
         self.client.force_login(self.user)
