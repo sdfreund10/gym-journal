@@ -408,6 +408,55 @@ def _finished_workout_redirect(request, workout):
     return redirect("workout_detail", workout_id=workout.id)
 
 
+def _render_set_edit_form(request, workout_set, values=None):
+    if values is None:
+        values = {
+            "weight": workout_set.weight,
+            "reps": workout_set.reps,
+            "duration_seconds": workout_set.duration_seconds,
+        }
+    return render(
+        request,
+        "gym_journal/workout/log_set.html",
+        _set_form_context(
+            workout=workout_set.workout,
+            exercise=workout_set.exercise,
+            set_number=workout_set.set_number,
+            form_action=reverse("update_set", kwargs={"set_id": workout_set.pk}),
+            is_edit=True,
+            values=values,
+        ),
+    )
+
+
+def _locked_owned_workout_set(user, set_id):
+    """Fetch and lock an owned set and workout inside an atomic transaction."""
+    workout_set = get_object_or_404(
+        WorkoutSet.objects.select_for_update().select_related("exercise"),
+        pk=set_id,
+        workout__user=user,
+    )
+    workout_set.workout = get_object_or_404(
+        Workout.objects.select_for_update(),
+        pk=workout_set.workout_id,
+        user=user,
+    )
+    return workout_set
+
+
+def _update_set_measurements(workout_set, post):
+    """Validate and save measurements; the caller owns the transaction."""
+    has_weight = workout_set.exercise.category in WEIGHTED_EXERCISE_CATEGORIES
+    is_timed = workout_set.exercise.category == Exercise.Category.TIMED
+    workout_set.weight = _optional_post_value(post, "weight") if has_weight else None
+    workout_set.reps = None if is_timed else _optional_post_value(post, "reps")
+    workout_set.duration_seconds = (
+        _optional_post_value(post, "duration_seconds") if is_timed else None
+    )
+    workout_set.full_clean()
+    workout_set.save(update_fields=["weight", "reps", "duration_seconds"])
+
+
 # GET /workout/set/<set_id>/edit/
 @login_required
 @require_safe
@@ -420,22 +469,7 @@ def edit_set(request, set_id):
     if workout_set.workout.ended_at is not None:
         return _finished_workout_redirect(request, workout_set.workout)
 
-    return render(
-        request,
-        "gym_journal/workout/log_set.html",
-        _set_form_context(
-            workout=workout_set.workout,
-            exercise=workout_set.exercise,
-            set_number=workout_set.set_number,
-            form_action=reverse("update_set", kwargs={"set_id": workout_set.pk}),
-            is_edit=True,
-            values={
-                "weight": workout_set.weight,
-                "reps": workout_set.reps,
-                "duration_seconds": workout_set.duration_seconds,
-            },
-        ),
-    )
+    return _render_set_edit_form(request, workout_set)
 
 
 # POST /workout/set/<set_id>/update/
@@ -443,52 +477,22 @@ def edit_set(request, set_id):
 @require_POST
 @transaction.atomic
 def update_set(request, set_id):
-    workout_set = get_object_or_404(
-        WorkoutSet.objects.select_for_update().select_related("exercise"),
-        pk=set_id,
-        workout__user=request.user,
-    )
-    workout = get_object_or_404(
-        Workout.objects.select_for_update(),
-        pk=workout_set.workout_id,
-        user=request.user,
-    )
-    workout_set.workout = workout
-    if workout.ended_at is not None:
-        return _finished_workout_redirect(request, workout)
-
-    has_weight = workout_set.exercise.category in WEIGHTED_EXERCISE_CATEGORIES
-    is_timed = workout_set.exercise.category == Exercise.Category.TIMED
-    workout_set.weight = (
-        _optional_post_value(request.POST, "weight") if has_weight else None
-    )
-    workout_set.reps = (
-        None if is_timed else _optional_post_value(request.POST, "reps")
-    )
-    workout_set.duration_seconds = (
-        _optional_post_value(request.POST, "duration_seconds") if is_timed else None
-    )
+    workout_set = _locked_owned_workout_set(request.user, set_id)
+    if workout_set.workout.ended_at is not None:
+        return _finished_workout_redirect(request, workout_set.workout)
 
     try:
-        workout_set.full_clean()
-        workout_set.save(update_fields=["weight", "reps", "duration_seconds"])
+        _update_set_measurements(workout_set, request.POST)
     except ValidationError as e:
         messages.error(request, _validation_message(e))
-        return render(
+        return _render_set_edit_form(
             request,
-            "gym_journal/workout/log_set.html",
-            _set_form_context(
-                workout=workout_set.workout,
-                exercise=workout_set.exercise,
-                set_number=workout_set.set_number,
-                form_action=reverse("update_set", kwargs={"set_id": workout_set.pk}),
-                is_edit=True,
-                values={
-                    "weight": request.POST.get("weight"),
-                    "reps": request.POST.get("reps"),
-                    "duration_seconds": request.POST.get("duration_seconds"),
-                },
-            ),
+            workout_set,
+            values={
+                "weight": request.POST.get("weight"),
+                "reps": request.POST.get("reps"),
+                "duration_seconds": request.POST.get("duration_seconds"),
+            },
         )
 
     log_event(
