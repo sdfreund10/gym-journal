@@ -1,14 +1,17 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from gym_journal.models import Exercise, Workout
 from gym_journal.views import (
-    WORKOUT_TIMEOUT_LIMIT_MINUTES,
     _workout_detail_context,
+    INACTIVE_WORKOUT_CHECK_CACHE_SECONDS,
+    WORKOUT_TIMEOUT_LIMIT_MINUTES,
     close_inactive_workouts,
 )
 
@@ -1065,9 +1068,13 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
 
 class CloseInactiveWorkoutsDecoratorTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.factory = RequestFactory()
         self.user = make_user()
         self.exercise = make_exercise()
+
+    def tearDown(self):
+        cache.clear()
 
     def _authenticated_request(self):
         request = self.factory.get("/")
@@ -1093,6 +1100,63 @@ class CloseInactiveWorkoutsDecoratorTests(TestCase):
 
         recent.refresh_from_db()
         self.assertIsNone(recent.ended_at)
+
+    def test_skips_check_when_user_was_checked_recently(self):
+        _decorated_view(self._authenticated_request())
+        stale = make_workout(
+            user=self.user,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+
+        _decorated_view(self._authenticated_request())
+
+        stale.refresh_from_db()
+        self.assertIsNone(stale.ended_at)
+
+    def test_recent_check_is_scoped_to_user(self):
+        _decorated_view(self._authenticated_request())
+        other = make_user("other")
+        stale = make_workout(
+            user=other,
+            started_at=timezone.now()
+            - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES + 1),
+        )
+        request = self.factory.get("/")
+        request.user = other
+
+        _decorated_view(request)
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.ended_at, stale.started_at)
+
+    def test_caches_successful_check_for_fifteen_minutes(self):
+        with patch("gym_journal.views.cache") as cache_mock:
+            cache_mock.get.return_value = None
+
+            _decorated_view(self._authenticated_request())
+
+        cache_mock.set.assert_called_once_with(
+            f"gym-journal:inactive-workout-check:{self.user.pk}",
+            True,
+            timeout=INACTIVE_WORKOUT_CHECK_CACHE_SECONDS,
+        )
+        self.assertEqual(INACTIVE_WORKOUT_CHECK_CACHE_SECONDS, 15 * 60)
+
+    def test_does_not_cache_failed_check(self):
+        with (
+            patch("gym_journal.views.cache") as cache_mock,
+            patch(
+                "gym_journal.views.Workout.objects.for_user",
+                side_effect=RuntimeError("database unavailable"),
+            ),
+        ):
+            cache_mock.get.return_value = None
+
+            with self.assertRaisesRegex(RuntimeError, "database unavailable"):
+                _decorated_view(self._authenticated_request())
+
+        cache_mock.set.assert_not_called()
 
     def test_closes_when_last_set_is_stale(self):
         workout = make_workout(
