@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count
@@ -90,12 +91,21 @@ def _category_defaults(category):
 
 
 WORKOUT_TIMEOUT_LIMIT_MINUTES = 90
+INACTIVE_WORKOUT_CHECK_CACHE_SECONDS = 15 * 60
+
+
+def _inactive_workout_check_cache_key(user_id):
+    return f"gym-journal:inactive-workout-check:{user_id}"
 
 
 def close_inactive_workouts(func):
     @functools.wraps(func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
+            return func(request, *args, **kwargs)
+
+        cache_key = _inactive_workout_check_cache_key(request.user.pk)
+        if cache.get(cache_key):
             return func(request, *args, **kwargs)
 
         cutoff = timezone.now() - timedelta(minutes=WORKOUT_TIMEOUT_LIMIT_MINUTES)
@@ -111,6 +121,7 @@ def close_inactive_workouts(func):
                     workout_id=workout.pk,
                 )
 
+        cache.set(cache_key, True, timeout=INACTIVE_WORKOUT_CHECK_CACHE_SECONDS)
         return func(request, *args, **kwargs)
 
     return wrapper
