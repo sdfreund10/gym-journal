@@ -8,20 +8,20 @@
 <main class="mx-auto w-full max-w-md px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] {% if is_active %}pb-dock{% else %}pb-8 safe-bottom{% endif %}">
   {% include "gym_journal/partials/page_nav.html" with back_url=back_url back_label=back_label is_active=is_active last_set_logged_at=last_set_logged_at %}
 
-  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-4">
     <div class="min-w-0">
       {% if is_active %}
       <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">In progress</p>
-      <h1 class="font-display truncate text-4xl uppercase">Workout</h1>
+      <h1 class="font-display truncate text-3xl uppercase">Workout</h1>
       {% else %}
       <p class="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">Completed</p>
-      <h1 class="font-display truncate text-4xl uppercase">Workout</h1>
+      <h1 class="font-display truncate text-3xl uppercase">Workout</h1>
       {% endif %}
     </div>
     {% if is_active %}
-    <form method="post" action="{% url 'finish_workout' %}" data-confirm="Finish this workout?">
+    <form method="post" action="{% url 'finish_workout' %}" data-confirm="Finish this workout?" class="flex">
       {% csrf_token %}
-      <button type="submit" class="shrink-0 rounded-2xl bg-card px-5 py-4 text-sm font-bold active:scale-95 transition-transform">Finish</button>
+      <button type="submit" class="h-full shrink-0 rounded-2xl bg-card px-5 text-sm font-bold active:scale-95 transition-transform">Finish</button>
     </form>
     {% endif %}
   </div>
