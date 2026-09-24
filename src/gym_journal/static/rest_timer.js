@@ -33,8 +33,7 @@
     }
 
     render();
-    const intervalId = window.setInterval(render, 1000);
-    window.addEventListener("pagehide", () => clearInterval(intervalId), { once: true });
+    window.setInterval(render, 1000);
   }
 
   document.querySelectorAll("[data-rest-timer]").forEach(initRestTimer);

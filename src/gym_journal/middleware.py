@@ -63,7 +63,7 @@ class TimeZoneMiddleware:
         if tzname:
             try:
                 timezone.activate(zoneinfo.ZoneInfo(unquote(tzname)))
-            except zoneinfo.ZoneInfoNotFoundError:
+            except (zoneinfo.ZoneInfoNotFoundError, ValueError):
                 timezone.deactivate()
         else:
             timezone.deactivate()
