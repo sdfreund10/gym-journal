@@ -1,11 +1,12 @@
 {% extends "gym_journal/base.html" %}
+{% load static %}
 
 {% block title %}{% if is_active %}Workout Mode{% else %}Workout — {{ workout.started_at|date:"M j" }}{% endif %} — Gym Journal{% endblock %}
 {% block meta_description %}Log sets one-handed during your session: pick an exercise, tap through weight and reps, and save instantly.{% endblock %}
 
 {% block content %}
 <main class="mx-auto w-full max-w-md px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] {% if is_active %}pb-dock{% else %}pb-8 safe-bottom{% endif %}">
-  {% include "gym_journal/partials/page_nav.html" with back_url=back_url back_label=back_label %}
+  {% include "gym_journal/partials/page_nav.html" with back_url=back_url back_label=back_label is_active=is_active last_set_logged_at=last_set_logged_at %}
 
   <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
     <div class="min-w-0">
@@ -84,4 +85,7 @@
   </div>
   {% endif %}
 </main>
+{% if is_active and last_set_logged_at %}
+<script src="{% static 'rest_timer.js' %}" defer></script>
+{% endif %}
 {% endblock %}

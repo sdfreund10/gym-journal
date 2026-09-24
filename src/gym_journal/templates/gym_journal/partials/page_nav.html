@@ -1,9 +1,29 @@
-<div class="mb-4 flex items-center justify-between gap-4">
-  <a href="{{ back_url }}" class="inline-flex min-w-0 items-center gap-1 text-sm font-bold text-muted-foreground">
+<div class="mb-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+  <a href="{{ back_url }}" class="inline-flex min-w-0 items-center gap-1 justify-self-start text-sm font-bold text-muted-foreground">
     {% include "gym_journal/partials/icons.html" with icon="chevron-left" class="h-4 w-4 shrink-0" %}
     <span class="truncate">{{ back_label }}</span>
   </a>
-  {% if user.is_authenticated %}
-    {% include "gym_journal/partials/sign_out.html" %}
+  {% if is_active and last_set_logged_at %}
+  <div
+    class="inline-flex items-center gap-1 text-xs font-medium text-primary"
+    data-rest-timer
+    data-rest-since="{{ last_set_logged_at|date:'c' }}"
+  >
+    {% include "gym_journal/partials/icons.html" with icon="clock" class="h-3.5 w-3.5 shrink-0" %}
+    <span
+      class="tabular-nums"
+      data-rest-display
+      role="timer"
+      aria-live="off"
+      aria-label="Time since last set"
+    ></span>
+  </div>
+  {% else %}
+  <span aria-hidden="true"></span>
   {% endif %}
+  <div class="justify-self-end">
+    {% if user.is_authenticated %}
+      {% include "gym_journal/partials/sign_out.html" %}
+    {% endif %}
+  </div>
 </div>

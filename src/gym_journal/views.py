@@ -235,6 +235,7 @@ def _workout_detail_context(workout, request):
         "exercise_groups": _group_workout_sets(sets),
         "set_count": len(sets),
         "is_active": workout.ended_at is None,
+        "last_set_logged_at": sets[0].logged_at if sets else None,
         "back_url": back_url,
         "back_label": back_label,
     }
