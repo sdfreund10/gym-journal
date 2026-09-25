@@ -1,10 +1,15 @@
 import logging
 import time
 import uuid
+import zoneinfo
+from urllib.parse import unquote
+
+from django.utils import timezone
 
 logger = logging.getLogger("gym_journal")
 
 SKIP_PATH_PREFIXES = ("/health/", "/static/")
+TIMEZONE_COOKIE_NAME = "gym-journal-timezone"
 
 
 class RequestLoggingMiddleware:
@@ -47,3 +52,22 @@ class RequestLoggingMiddleware:
         )
         response["X-Request-ID"] = request_id
         return response
+
+
+class TimeZoneMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        tzname = request.COOKIES.get(TIMEZONE_COOKIE_NAME)
+        if tzname:
+            try:
+                timezone.activate(zoneinfo.ZoneInfo(unquote(tzname)))
+            except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+                timezone.deactivate()
+        else:
+            timezone.deactivate()
+        try:
+            return self.get_response(request)
+        finally:
+            timezone.deactivate()
