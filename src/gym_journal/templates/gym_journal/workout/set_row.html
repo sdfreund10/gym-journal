@@ -8,16 +8,8 @@
     {% endif %}
   </span>
   {% if is_active %}
-  <span class="flex items-center">
-    <a href="{% url 'edit_set' workout_set.pk %}" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Edit set {{ workout_set.set_number }}">
-      {% include "gym_journal/partials/icons.html" with icon="pencil" class="h-4 w-4" %}
-    </a>
-    <form method="post" action="{% url 'delete_set' workout_set.pk %}" data-confirm="Remove this set?">
-      {% csrf_token %}
-      <button type="submit" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Delete set {{ workout_set.set_number }}">
-        {% include "gym_journal/partials/icons.html" with icon="trash" class="h-4 w-4" %}
-      </button>
-    </form>
-  </span>
+  <a href="{% url 'edit_set' workout_set.pk %}" class="p-2 text-muted-foreground active:scale-95 transition-transform" aria-label="Edit set {{ workout_set.set_number }}">
+    {% include "gym_journal/partials/icons.html" with icon="pencil" class="h-4 w-4" %}
+  </a>
   {% endif %}
 </li>
