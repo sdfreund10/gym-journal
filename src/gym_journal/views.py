@@ -104,6 +104,7 @@ def _set_form_context(
     form_action,
     is_edit=False,
     values=None,
+    workout_set_id=None,
 ):
     defaults = _category_defaults(exercise.category)
     values = values or {}
@@ -123,6 +124,7 @@ def _set_form_context(
         "next_set_number": set_number,
         "form_action": form_action,
         "is_edit": is_edit,
+        "workout_set_id": workout_set_id,
         "weight_unset": weight_unset,
         **defaults,
     }
@@ -442,6 +444,7 @@ def _render_set_edit_form(request, workout_set, values=None):
             form_action=reverse("update_set", kwargs={"set_id": workout_set.pk}),
             is_edit=True,
             values=values,
+            workout_set_id=workout_set.pk,
         ),
     )
 

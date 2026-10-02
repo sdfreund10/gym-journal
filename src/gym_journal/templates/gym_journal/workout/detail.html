@@ -68,6 +68,12 @@
         </ul>
       </noscript>
       {% endif %}
+      {% if is_active %}
+      <a href="{% url 'workout_log_set' group.exercise.pk %}" class="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-primary active:scale-95 transition-transform">
+        {% include "gym_journal/partials/icons.html" with icon="plus" class="h-4 w-4" %}
+        Add set
+      </a>
+      {% endif %}
     </li>
     {% empty %}
     <li class="rounded-2xl bg-card px-5 py-10 text-center text-muted-foreground">

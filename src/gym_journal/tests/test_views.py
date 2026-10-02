@@ -140,7 +140,7 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
     def test_finished_workout_detail_is_read_only(self):
         workout = make_workout(user=self.user, ended_at=timezone.now())
         exercise = make_exercise()
-        make_workout_set(workout, exercise)
+        workout_set = make_workout_set(workout, exercise)
 
         response = self.client.get(
             reverse("workout_detail", kwargs={"workout_id": workout.id})
@@ -150,6 +150,15 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Completed")
         self.assertNotContains(response, reverse("finish_workout"))
         self.assertNotContains(response, "Add Exercise")
+        self.assertNotContains(response, "Add set")
+        self.assertNotContains(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("delete_set", kwargs={"set_id": workout_set.pk}),
+        )
         self.assertNotContains(response, 'aria-label="Delete set"')
         self.assertNotContains(response, "data-rest-timer")
         self.assertNotContains(response, "rest_timer.js")
@@ -279,7 +288,46 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
         self.assertContains(response, f'id="{overflow_id}"')
         self.assertContains(
             response,
+            reverse("edit_set", kwargs={"set_id": workout_sets[0].pk}),
+        )
+        self.assertNotContains(
+            response,
             reverse("delete_set", kwargs={"set_id": workout_sets[0].pk}),
+        )
+        self.assertContains(response, "Add set")
+        self.assertContains(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk}),
+        )
+
+    def test_active_workout_shows_add_set_per_exercise(self):
+        workout = make_workout(user=self.user)
+        first = make_exercise(name="Squat")
+        second = make_exercise(name="Row")
+        first_set = make_workout_set(workout, first)
+        second_set = make_workout_set(workout, second)
+
+        response = self.client.get(
+            reverse("workout_detail", kwargs={"workout_id": workout.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Add set", count=2)
+        self.assertContains(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": first.pk}),
+        )
+        self.assertContains(
+            response,
+            reverse("workout_log_set", kwargs={"exercise_id": second.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("delete_set", kwargs={"set_id": first_set.pk}),
+        )
+        self.assertNotContains(
+            response,
+            reverse("delete_set", kwargs={"set_id": second_set.pk}),
         )
 
     def test_three_sets_do_not_render_expand_control(self):
@@ -627,6 +675,11 @@ class EditSetViewTests(AuthenticatedTestCase):
             response,
             reverse("update_set", kwargs={"set_id": workout_set.pk}),
         )
+        self.assertContains(
+            response,
+            reverse("delete_set", kwargs={"set_id": workout_set.pk}),
+        )
+        self.assertContains(response, "Delete set")
         self.assertContains(response, 'data-value="137.5"')
         self.assertContains(response, 'data-value="7"')
 
