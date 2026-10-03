@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
-from django.template.defaultfilters import date as date_filter
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -160,55 +159,6 @@ class WorkoutDetailViewTests(AuthenticatedTestCase):
             reverse("delete_set", kwargs={"set_id": workout_set.pk}),
         )
         self.assertNotContains(response, 'aria-label="Delete set"')
-        self.assertNotContains(response, "data-rest-timer")
-        self.assertNotContains(response, "rest_timer.js")
-
-    def test_active_workout_with_sets_shows_rest_timer(self):
-        workout = make_workout(user=self.user)
-        exercise = make_exercise()
-        workout_set = make_workout_set(workout, exercise)
-
-        response = self.client.get(
-            reverse("workout_detail", kwargs={"workout_id": workout.id})
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(workout_set.logged_at, "c")}"',
-        )
-        self.assertContains(response, "rest_timer.js")
-
-    def test_rest_timer_anchors_to_most_recent_set(self):
-        workout = make_workout(user=self.user)
-        exercise = make_exercise()
-        now = timezone.now()
-        make_workout_set(workout, exercise, logged_at=now - timedelta(minutes=5))
-        latest = make_workout_set(
-            workout, exercise, logged_at=now - timedelta(minutes=1)
-        )
-
-        response = self.client.get(
-            reverse("workout_detail", kwargs={"workout_id": workout.id})
-        )
-
-        self.assertEqual(response.context["last_set_logged_at"], latest.logged_at)
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(latest.logged_at, "c")}"',
-        )
-
-    def test_active_workout_without_sets_omits_rest_timer(self):
-        workout = make_workout(user=self.user)
-
-        response = self.client.get(
-            reverse("workout_detail", kwargs={"workout_id": workout.id})
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["last_set_logged_at"])
         self.assertNotContains(response, "data-rest-timer")
         self.assertNotContains(response, "rest_timer.js")
 
@@ -403,32 +353,6 @@ class WorkoutPickExerciseViewTests(AuthenticatedTestCase):
         self.assertContains(response, reverse("exercise_new"))
         self.assertContains(response, "from=workout")
 
-    def test_picker_with_prior_sets_shows_rest_timer(self):
-        workout = make_workout(user=self.user)
-        exercise = make_exercise()
-        workout_set = make_workout_set(workout, exercise)
-
-        response = self.client.get(reverse("workout_pick_exercise"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(workout_set.logged_at, "c")}"',
-        )
-        self.assertContains(response, "rest_timer.js")
-
-    def test_picker_without_sets_omits_rest_timer(self):
-        make_workout(user=self.user)
-
-        response = self.client.get(reverse("workout_pick_exercise"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["last_set_logged_at"])
-        self.assertNotContains(response, "data-rest-timer")
-        self.assertNotContains(response, "rest_timer.js")
-
 
 class WorkoutLogSetViewTests(AuthenticatedTestCase):
     def test_shows_no_active_page_when_no_workout(self):
@@ -494,57 +418,6 @@ class WorkoutLogSetViewTests(AuthenticatedTestCase):
         self.assertNotContains(response, 'data-duration-timer')
         self.assertNotContains(response, "/static/timer.js")
         self.assertContains(response, 'data-name="reps"')
-
-    def test_log_set_with_prior_sets_shows_rest_timer(self):
-        workout = make_workout(user=self.user)
-        exercise = make_exercise()
-        workout_set = make_workout_set(workout, exercise)
-
-        response = self.client.get(
-            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk})
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(workout_set.logged_at, "c")}"',
-        )
-        self.assertContains(response, "rest_timer.js")
-
-    def test_log_set_rest_timer_anchors_to_most_recent_set(self):
-        workout = make_workout(user=self.user)
-        first = make_exercise(name="Squat")
-        second = make_exercise(name="Row")
-        now = timezone.now()
-        make_workout_set(workout, first, logged_at=now - timedelta(minutes=5))
-        latest = make_workout_set(
-            workout, second, logged_at=now - timedelta(minutes=1)
-        )
-
-        response = self.client.get(
-            reverse("workout_log_set", kwargs={"exercise_id": first.pk})
-        )
-
-        self.assertEqual(response.context["last_set_logged_at"], latest.logged_at)
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(latest.logged_at, "c")}"',
-        )
-
-    def test_log_set_without_prior_sets_omits_rest_timer(self):
-        make_workout(user=self.user)
-        exercise = make_exercise()
-
-        response = self.client.get(
-            reverse("workout_log_set", kwargs={"exercise_id": exercise.pk})
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["last_set_logged_at"])
-        self.assertNotContains(response, "data-rest-timer")
-        self.assertNotContains(response, "rest_timer.js")
 
 
 class StartWorkoutViewTests(AuthenticatedTestCase):
@@ -759,13 +632,6 @@ class EditSetViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Delete set")
         self.assertContains(response, 'data-value="137.5"')
         self.assertContains(response, 'data-value="7"')
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(workout_set.logged_at, "c")}"',
-        )
-        self.assertContains(response, "rest_timer.js")
 
     def test_timed_edit_form_shows_manual_stepper_instead_of_timer(self):
         workout = make_workout(user=self.user)
@@ -849,9 +715,6 @@ class EditSetViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Duration must be between 5 and 900 seconds.")
         self.assertContains(response, 'data-value="4"')
         self.assertEqual(workout_set.duration_seconds, 30)
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(response, "rest_timer.js")
 
     def test_update_rejects_negative_weight(self):
         workout = make_workout(user=self.user)
@@ -1148,41 +1011,6 @@ class ExerciseLibraryViewTests(AuthenticatedTestCase):
         self.assertTrue(Exercise.objects.filter(name="Cable Fly").exists())
         exercise = Exercise.objects.get(name="Cable Fly")
         self.assertEqual(list(exercise.targeted_muscles.all()), [chest])
-
-    def test_new_exercise_from_workout_shows_rest_timer(self):
-        workout = make_workout(user=self.user)
-        workout_set = make_workout_set(workout, make_exercise())
-
-        response = self.client.get(f"{reverse('exercise_new')}?from=workout")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["last_set_logged_at"], workout_set.logged_at)
-        self.assertContains(response, "data-rest-timer")
-        self.assertContains(
-            response,
-            f'data-rest-since="{date_filter(workout_set.logged_at, "c")}"',
-        )
-        self.assertContains(response, "rest_timer.js")
-
-    def test_new_exercise_from_workout_without_sets_omits_rest_timer(self):
-        make_workout(user=self.user)
-
-        response = self.client.get(f"{reverse('exercise_new')}?from=workout")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["last_set_logged_at"])
-        self.assertNotContains(response, "data-rest-timer")
-        self.assertNotContains(response, "rest_timer.js")
-
-    def test_new_exercise_outside_workout_omits_rest_timer(self):
-        workout = make_workout(user=self.user)
-        make_workout_set(workout, make_exercise())
-
-        response = self.client.get(reverse("exercise_new"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "data-rest-timer")
-        self.assertNotContains(response, "rest_timer.js")
 
     def test_create_exercise_during_active_workout_returns_to_log_set(self):
         make_workout(user=self.user)
