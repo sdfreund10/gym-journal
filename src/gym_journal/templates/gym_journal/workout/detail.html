@@ -1,5 +1,4 @@
 {% extends "gym_journal/base.html" %}
-{% load static %}
 
 {% block title %}{% if is_active %}Workout Mode{% else %}Workout — {{ workout.started_at|date:"M j" }}{% endif %} — Gym Journal{% endblock %}
 {% block meta_description %}Log sets one-handed during your session: pick an exercise, tap through weight and reps, and save instantly.{% endblock %}
@@ -91,7 +90,4 @@
   </div>
   {% endif %}
 </main>
-{% if is_active and last_set_logged_at %}
-<script src="{% static 'rest_timer.js' %}" defer></script>
-{% endif %}
 {% endblock %}

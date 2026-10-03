@@ -96,6 +96,15 @@ def _category_defaults(category):
     }
 
 
+def _rest_timer_context(workout):
+    if workout is None or workout.ended_at is not None:
+        return {"is_active": False, "last_set_logged_at": None}
+    return {
+        "is_active": True,
+        "last_set_logged_at": workout.last_set_logged_at(),
+    }
+
+
 def _set_form_context(
     *,
     workout,
@@ -127,6 +136,7 @@ def _set_form_context(
         "workout_set_id": workout_set_id,
         "weight_unset": weight_unset,
         **defaults,
+        **_rest_timer_context(workout),
     }
 
 
@@ -302,14 +312,15 @@ def workout_pick_exercise(request):
             "active_workout": active_workout,
             "exercises": exercises,
             "recent_exercise_ids": set(recent_ids),
+            **_rest_timer_context(active_workout),
         },
     )
 
 
-def _from_active_workout(request):
+def _active_workout_from_request(request):
     if request.POST.get("from") == "workout" or request.GET.get("from") == "workout":
-        return Workout.objects.for_user(request.user).active().first() is not None
-    return False
+        return Workout.objects.for_user(request.user).active().first()
+    return None
 
 
 # GET /workout/add/<exercise_id>/
@@ -567,21 +578,25 @@ def exercise_list(request):
 @login_required
 @close_inactive_workouts
 def exercise_new(request):
+    workout = _active_workout_from_request(request)
     return render(
         request,
         "gym_journal/library/form.html",
-        _exercise_form_context(from_workout=_from_active_workout(request)),
+        _exercise_form_context(from_workout=workout is not None, workout=workout),
     )
 
 
 # POST /exercises/create
-def _exercise_form_context(exercise=None, selected_muscles=None, from_workout=False):
+def _exercise_form_context(
+    exercise=None, selected_muscles=None, from_workout=False, workout=None
+):
     return {
         "exercise": exercise,
         "categories": Exercise.Category.choices,
         "muscles": Muscle.objects.order_by("name"),
         "selected_muscles": selected_muscles or [],
         "from_workout": from_workout,
+        **_rest_timer_context(workout if from_workout else None),
     }
 
 
@@ -593,7 +608,8 @@ def create_exercise(request):
         category=request.POST.get("category"),
     )
     selected_muscle_ids = request.POST.getlist("targeted_muscles")
-    from_workout = _from_active_workout(request)
+    workout = _active_workout_from_request(request)
+    from_workout = workout is not None
     try:
         new_exercise.full_clean()
         new_exercise.save()
@@ -619,6 +635,7 @@ def create_exercise(request):
                     Muscle.objects.filter(id__in=selected_muscle_ids)
                 ),
                 from_workout=from_workout,
+                workout=workout,
             ),
         )
 
