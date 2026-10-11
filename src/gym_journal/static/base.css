@@ -2,6 +2,10 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+#nav-loading:not(.hidden) {
+  display: flex;
+}
+
 body {
   overscroll-behavior-y: none;
 }

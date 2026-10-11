@@ -81,6 +81,19 @@
   <div class="flex min-h-0 flex-1 flex-col">
     {% block content %}{% endblock %}
   </div>
+  <div
+    id="nav-loading"
+    class="fixed inset-0 z-[100] hidden items-center justify-center bg-background/85"
+    hidden
+    aria-hidden="true"
+  >
+    <div
+      class="h-11 w-11 animate-spin rounded-full border-4 border-primary border-t-transparent"
+      role="status"
+      aria-label="Loading"
+    ></div>
+  </div>
+  <script src="{% static 'navigation_loading.js' %}" defer></script>
   <script src="{% static 'stepper.js' %}" defer></script>
   <script src="{% static 'app.js' %}" defer></script>
   <script src="{% static 'timezone.js'%}" defer></script>

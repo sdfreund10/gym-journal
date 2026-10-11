@@ -42,3 +42,9 @@ class PublicMetaTests(SimpleTestCase):
         self.assertContains(response, reverse("privacy"))
         self.assertContains(response, reverse("terms"))
         self.assertContains(response, "site.webmanifest")
+
+    def test_base_template_includes_navigation_loading_overlay(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertContains(response, 'id="nav-loading"')
+        self.assertContains(response, "navigation_loading.js")
