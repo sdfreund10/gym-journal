@@ -194,12 +194,14 @@ def index(request):
     if last_workout:
         last_workout_set_count = last_workout.workoutset_set.count()
 
+    total_set_count = WorkoutSet.objects.filter(workout__user=request.user).count()
+
     return render(
         request,
         "gym_journal/index.html",
         {
             "active_workout": active_workout,
-            "exercise_count": Exercise.objects.count(),
+            "total_set_count": total_set_count,
             "finished_workout_count": user_workouts.filter(
                 ended_at__isnull=False
             ).count(),

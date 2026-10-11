@@ -67,7 +67,7 @@ class IndexViewTests(AuthenticatedTestCase):
         self.assertContains(response, "Gym Journal")
         self.assertContains(response, "Sign out")
 
-    def test_index_shows_library_counts(self):
+    def test_index_shows_logged_set_and_workout_counts(self):
         make_exercise(name="Squat")
         make_exercise(name="Bench Press")
         finished = make_workout(user=self.user, ended_at=timezone.now())
@@ -75,7 +75,7 @@ class IndexViewTests(AuthenticatedTestCase):
 
         response = self.client.get(reverse("index"))
 
-        self.assertContains(response, "3 exercises")
+        self.assertContains(response, "1 set logged")
         self.assertContains(response, "1 workout finished")
 
     def test_index_shows_resume_link_when_workout_is_active(self):
