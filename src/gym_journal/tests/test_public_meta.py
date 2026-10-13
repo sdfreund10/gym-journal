@@ -42,3 +42,8 @@ class PublicMetaTests(SimpleTestCase):
         self.assertContains(response, reverse("privacy"))
         self.assertContains(response, reverse("terms"))
         self.assertContains(response, "site.webmanifest")
+
+    def test_base_template_disables_controls_that_navigate(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertContains(response, "disable_on_navigate.js")

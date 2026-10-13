@@ -49,7 +49,7 @@ Apply migrations:
 uv run python manage.py migrate
 ```
 
-Seed muscle groups and starter exercises (safe to re-run):
+Seed muscle groups, starter exercises, and a local login (`dev` / `dev`). The user is created only while `DEBUG` is on, so production settings still seed exercises without that password. Safe to re-run:
 
 ```bash
 uv run python manage.py seed_dev

@@ -81,6 +81,7 @@
   <div class="flex min-h-0 flex-1 flex-col">
     {% block content %}{% endblock %}
   </div>
+  <script src="{% static 'disable_on_navigate.js' %}" defer></script>
   <script src="{% static 'stepper.js' %}" defer></script>
   <script src="{% static 'app.js' %}" defer></script>
   <script src="{% static 'timezone.js'%}" defer></script>

@@ -24,6 +24,12 @@ button {
   cursor: pointer;
 }
 
+[data-nav-pending] {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: default;
+}
+
 input[type="search"]::-webkit-search-decoration,
 input[type="search"]::-webkit-search-cancel-button,
 input[type="search"]::-webkit-search-results-button {
