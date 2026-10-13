@@ -113,6 +113,8 @@ DATABASES = {
             "service": "gym_journal_development",
             "passfile": str(BASE_DIR / ".my_pgpass"),
         },
+        "CONN_MAX_AGE": 1200,
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 
