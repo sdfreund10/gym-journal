@@ -17,6 +17,7 @@ class DatabaseFromUrlTests(SimpleTestCase):
         self.assertEqual(config["HOST"], "db.example.com")
         self.assertEqual(config["PORT"], "5433")
         self.assertEqual(config["OPTIONS"], {"sslmode": "require"})
+        self.assertEqual(config["CONN_MAX_AGE"], 1200)
         self.assertTrue(config["CONN_HEALTH_CHECKS"])
 
     def test_defaults_port_when_missing(self):

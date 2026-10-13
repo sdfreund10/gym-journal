@@ -13,7 +13,7 @@ Required keys:
 Optional:
     DJANGO_CSRF_TRUSTED_ORIGINS   comma-separated origins, e.g. https://example.com
     DJANGO_CORS_ALLOWED_ORIGINS   comma-separated origins for the mobile/web API
-    DJANGO_CONN_MAX_AGE           persistent DB connections, default 60
+    DJANGO_CONN_MAX_AGE           persistent DB connections, default 1200 (20 min)
 """
 
 import os

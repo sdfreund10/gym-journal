@@ -23,7 +23,7 @@ def database_from_url(url):
         "PASSWORD": unquote(parsed.password or ""),
         "HOST": parsed.hostname or "",
         "PORT": str(parsed.port or 5432),
-        "CONN_MAX_AGE": int(os.environ.get("DJANGO_CONN_MAX_AGE", "60")),
+        "CONN_MAX_AGE": int(os.environ.get("DJANGO_CONN_MAX_AGE", "1200")),
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": options,
     }
