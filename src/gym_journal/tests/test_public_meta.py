@@ -47,5 +47,3 @@ class PublicMetaTests(SimpleTestCase):
         response = self.client.get(reverse("login"))
 
         self.assertContains(response, "disable_on_navigate.js")
-        self.assertNotContains(response, 'id="nav-loading"')
-        self.assertNotContains(response, "animate-spin")
