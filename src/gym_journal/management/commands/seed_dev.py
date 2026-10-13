@@ -1,11 +1,16 @@
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from gym_journal.models import Exercise, Muscle
 from gym_journal.seed_data import EXERCISES, MUSCLES
 
+DEV_USERNAME = "dev"
+DEV_PASSWORD = "dev"
+
 
 class Command(BaseCommand):
-    help = "Seed development data: muscle groups and common exercises."
+    help = "Seed development data: muscle groups, common exercises, and a local user."
 
     def handle(self, *args, **options):
         muscles_by_name = {}
@@ -36,9 +41,26 @@ class Command(BaseCommand):
                 [muscles_by_name[name] for name in spec["muscles"]]
             )
 
+        self._seed_dev_user()
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Done. Created {muscles_created} muscle(s) and "
                 f"{exercises_created} exercise(s)."
             )
         )
+
+    def _seed_dev_user(self):
+        if not settings.DEBUG:
+            self.stdout.write("  - user: skipped (DEBUG is off)")
+            return
+
+        user, created = get_user_model().objects.get_or_create(username=DEV_USERNAME)
+        if created:
+            user.set_password(DEV_PASSWORD)
+            user.save(update_fields=["password"])
+            self.stdout.write(
+                f"  + user: {DEV_USERNAME} (password: {DEV_PASSWORD})"
+            )
+        else:
+            self.stdout.write(f"  = user: {DEV_USERNAME} (exists)")
