@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.test import Client, SimpleTestCase
 from django.urls import reverse
 
@@ -42,3 +45,16 @@ class PublicMetaTests(SimpleTestCase):
         self.assertContains(response, reverse("privacy"))
         self.assertContains(response, reverse("terms"))
         self.assertContains(response, "site.webmanifest")
+
+    def test_favicon_uses_primary_brand_color(self):
+        favicon = (
+            Path(settings.BASE_DIR)
+            / "src"
+            / "gym_journal"
+            / "static"
+            / "favicon.svg"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('fill="#0d1117"', favicon)
+        self.assertIn('stroke="#76d305"', favicon)
+        self.assertNotIn("#e8954a", favicon)
