@@ -53,7 +53,7 @@
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
-    if (!link) return;
+    if (!link || link.closest("[data-no-nav-loading]")) return;
     if (link.dataset.navPending === "true") {
       event.preventDefault();
       return;
@@ -68,6 +68,10 @@
     if (!(form instanceof HTMLFormElement)) return;
 
     const submitter = event.submitter;
+    if (
+      form.closest("[data-no-nav-loading]") ||
+      submitter?.closest("[data-no-nav-loading]")
+    ) return;
     if (submitter?.dataset.navPending === "true") {
       event.preventDefault();
       return;
